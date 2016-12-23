@@ -8,6 +8,7 @@ const	Intercom	= require('larvitamintercom'),
 	async	= require('async'),
 	http	= require('http'),
 	log	= require('winston'),
+	sql	= 'CREATE TABLE `bosse` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY, `name` varchar(255) NOT NULL); INSERT INTO bosse (name) VALUES(\'duh\');',
 	os	= require('os'),
 	nics	= os.networkInterfaces(),
 	db	= require('larvitdb'),
@@ -115,8 +116,7 @@ describe('Basics', function() {
 			intercom1	= new Intercom(require(intercomConfigFile)),
 			intercom2	= new Intercom(require(intercomConfigFile)),
 			options	= {'exchange': exchangeName},
-			tasks	= [],
-			sql	= 'CREATE TABLE `bosse` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY, `name` varchar(255) NOT NULL); INSERT INTO bosse (name) VALUES(\'duh\');';
+			tasks	= [];
 
 		let	msgHandled	= false;
 
@@ -307,6 +307,78 @@ describe('Basics', function() {
 
 		async.series(tasks, function(err) {
 			if (err) throw err;
+		});
+	});
+});
+
+describe('Database', function() {
+	it('should sync MariaDB/MySQL stuff', function(done) {
+		const	exchangeName	= 'test_dataDump_mariadb',
+			intercom1	= new Intercom(require(intercomConfigFile)),
+			intercom2	= new Intercom(require(intercomConfigFile)),
+			tasks	= [];
+
+		this.slow(500);
+
+		intercom1.on('ready', function(err) {
+			if (err) throw err;
+			intercom1.ready = true;
+		});
+		intercom2.on('ready', function(err) {
+			if (err) throw err;
+			intercom2.ready = true;
+		});
+
+		// Wait for the intercoms to come online
+		tasks.push(function(cb) {
+			function checkIfReady() {
+				if (intercom1.ready === true && intercom2.ready === true) {
+					cb();
+				} else {
+					setTimeout(checkIfReady, 10);
+				}
+			}
+			checkIfReady();
+		});
+
+		// Start server
+		tasks.push(function(cb) {
+			const	options	= {'exchange': exchangeName};
+
+			options.dataDumpCmd = {
+				'command':	'echo',
+				'args':	[sql]
+			};
+
+			options['Content-Type']	= 'application/sql';
+			options.intercom	= intercom1;
+
+			new amsync.SyncServer(options, cb);
+		});
+
+		// Write sync to db
+		tasks.push(function(cb) {
+			const	options	= {'exchange': exchangeName, 'intercom': intercom2};
+
+			amsync.mariadb(options, cb);
+		});
+
+		// Check database
+		tasks.push(function(cb) {
+			db.query('SELECT * FROM bosse', function(err, rows) {
+				if (err) throw err;
+
+				assert.deepEqual(rows.length,	1);
+				assert.deepEqual(rows[0].id,	1);
+				assert.deepEqual(rows[0].name,	'duh');
+				cb();
+			});
+		});
+
+		async.series(tasks, function(err) {
+			if (err) throw err;
+
+			done();
 		});
 	});
 });

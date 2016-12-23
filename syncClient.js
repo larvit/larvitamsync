@@ -81,6 +81,16 @@ SyncClient.prototype.handleMsg = function(message, ack, cb) {
 	log.verbose('larvitamsync: syncClient.js - SyncClient.handleMsg() - Sending request: "' + JSON.stringify(reqOptions) + '"');
 
 	req = http.request(reqOptions, function(res) {
+		if (res.statusCode !== 200) {
+			const	err	= new Error('Non 200 statusCode: ' + res.statusCode);
+			log.error('larvitamsync: syncClient.js - SyncClient.handleMsg() - Request failed: ' + err.message);
+			cb(err);
+		}
+
+		res.on('error', function(err) {
+			log.error('larvitamsync: syncClient.js - SyncClient.handleMsg() - res.on(error): ' + err.message);
+		});
+
 		cb(null, res);
 	});
 	req.end();
