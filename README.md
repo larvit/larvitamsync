@@ -49,14 +49,14 @@ For this to work, larvitamintercom must be configured and up and running!
 const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
 	amsync	= require('larvitamsync');
 
-amsync.reqSync(options, function(err, res) {
+new amsync.SyncClient(options, function(err, res) {
 	let	syncData	= '';
 
 	if (err) throw err;
 
 	// res is an instance of https://nodejs.org/api/http.html#http_class_http_incomingmessage
 
-	res.on('data', function(cunk) {
+	res.on('data', function(chunk) {
 		syncData += chunk.toString();
 	});
 
