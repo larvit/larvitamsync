@@ -17,10 +17,19 @@ const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be uni
 let	syncServer;
 
 // The stdout from this command will be piped to the data slave
-// This will be be the input for the https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
-options.dataDumpCmd = {'command': 'cat', 'args': ['/home/myself/dbdump.sql'], 'options': {}};
+// This will be be the input for the
+// https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
+options.dataDumpCmd = {
+	'command':	'cat',
+	'args':	['/home/myself/dbdump.sql'],
+	'options':	{}
+};
 // or
-options.dataDumpCmd = {'command': 'mysqldump', 'args': ['-u', 'root', '-psecret', '--single-transaction', 'dbname', 'table1', ,'table2'], 'options': {}};
+options.dataDumpCmd = {
+	'command':	'mysqldump',
+	'args':	['-u', 'root', '-psecret', '--single-transaction', 'dbname', 'table1', ,'table2'],
+	'options':	{}
+};
 // or something else
 
 // Optional Content-Type header can be set like this:
@@ -35,6 +44,8 @@ syncServer = new amsync.SyncServer(options, function(err) {
 ```
 
 ### Client (data slave)
+
+For this to work, larvitamintercom must be configured and up and running!
 
 ```javascript
 const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
