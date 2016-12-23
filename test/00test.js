@@ -107,67 +107,78 @@ before(function(done) {
 	async.series(tasks, done);
 });
 
-describe('Server', function() {
-	it('should start up', function(done) {
+describe('Basics', function() {
+	it('server', function(done) {
 		const	intercom	= new Intercom(require(intercomConfigFile).default), // We need a separate intercom to be able to subscribe again to the exchange
 			options	= {'exchange': exchangeName},
+			tasks	= [],
 			sql	= 'CREATE TABLE `bosse` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY, `name` varchar(255) NOT NULL); INSERT INTO bosse (name) VALUES(\'duh\');';
 
 		this.slow(500);
 
-		options.dataDumpCmd = {
-			'command':	'echo',
-			'args':	[sql]
-		};
+		function handleMsg(message, ack) {
+			const	reqOptions	= {};
 
-		options['Content-Type'] = 'application/sql';
+			ack();
 
-		intercom.on('ready', function() {
-			log.verbose('new intercom is up');
+			if (message.action !== 'dumpResponse') {
+				return;
+			}
 
-			new amsync.SyncServer(options, function(err) {
+			assert(message.endpoints, 'message.endpoints must an array with entries');
+
+			if (message.endpoints[0].family === 'IPv6') {
+				reqOptions.uri = 'http://[' + message.endpoints[0].host + ']';
+			} else {
+				reqOptions.uri = 'http://' + message.endpoints[0].host;
+			}
+
+			reqOptions.uri	+= ':' + message.endpoints[0].port;
+			reqOptions.headers	= {'token': message.endpoints[0].token};
+
+			request(reqOptions, function(err, res, body) {
 				if (err) throw err;
 
-				log.verbose('syncServer started');
-
-				intercom.subscribe({'exchange': exchangeName}, function(message, ack) {
-					const	reqOptions	= {};
-
-					ack();
-
-					if (message.action !== 'dumpResponse') {
-						return;
-					}
-
-					assert(message.endpoints, 'message.endpoints must an array with entries');
-
-					if (message.endpoints[0].family === 'IPv6') {
-						reqOptions.uri = 'http://[' + message.endpoints[0].host + ']';
-					} else {
-						reqOptions.uri = 'http://' + message.endpoints[0].host;
-					}
-
-					reqOptions.uri	+= ':' + message.endpoints[0].port;
-					reqOptions.headers	= {'token': message.endpoints[0].token};
-
-					request(reqOptions, function(err, res, body) {
-						if (err) throw err;
-
-						assert.deepEqual(_.trim(body), _.trim(sql));
-						done();
-					});
-				}, function(err) {
-					if (err) throw err;
-
-					log.verbose('Subscribe is running');
-
-					intercom.send({'action': 'reqestDump'}, {'exchange': exchangeName}, function(err) {
-						if (err) throw err;
-					});
-				});
+				assert.deepEqual(_.trim(body), _.trim(sql));
+				done();
 			});
+		}
+
+		// Wait for the intercom to come online
+		tasks.push(function(cb) {
+			intercom.on('ready', cb);
+		});
+
+		// Start server
+		tasks.push(function(cb) {
+			options.dataDumpCmd = {
+				'command':	'echo',
+				'args':	[sql]
+			};
+
+			options['Content-Type'] = 'application/sql';
+
+			new amsync.SyncServer(options, cb);
+		});
+
+		// Subscribe to happenings on the queue on our new intercom
+		tasks.push(function(cb) {
+			intercom.subscribe({'exchange': exchangeName}, handleMsg, cb);
+		});
+
+		// Send the request to the queue
+		tasks.push(function(cb) {
+			intercom.send({'action': 'reqestDump'}, {'exchange': exchangeName}, cb);
+		});
+
+		async.series(tasks, function(err) {
+			if (err) throw err;
 		});
 	});
+
+//	it('client', function(done) {
+//
+//	});
 });
 
 after(function(done) {
