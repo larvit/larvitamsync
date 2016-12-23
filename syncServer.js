@@ -116,6 +116,7 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 
 				if (nicAddress.internal === false) {
 					message.endpoints.push({
+						'protocol':	'http',
 						'family':	nicAddress.family,
 						'host':	nicAddress.address,
 						'port':	servedPort,
