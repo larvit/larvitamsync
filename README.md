@@ -14,8 +14,6 @@ For this to work, larvitamintercom must be configured and up and running!
 const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
 	amsync	= require('larvitamsync');
 
-let	syncServer;
-
 // The stdout from this command will be piped to the data slave
 // This will be be the input for the
 // https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
@@ -36,7 +34,7 @@ options.dataDumpCmd = {
 options['Content-Type'] = 'application/sql';
 
 // Returns https://nodejs.org/api/http.html#http_class_http_server
-syncServer = new amsync.SyncServer(options, function(err) {
+new amsync.SyncServer(options, function(err) {
 	if (err) throw err;
 
 	console.log('Server active');

@@ -1,11 +1,18 @@
 'use strict';
 
-const	Intercom	= require('larvitamintercom'),
+const	exchangeName	= 'test_dataDump',
+	Intercom	= require('larvitamintercom'),
+	request	= require('request'),
+	assert	= require('assert'),
+	amsync	= require(__dirname + '/../index.js'),
 	lUtils	= require('larvitutils'),
 	async	= require('async'),
 	log	= require('winston'),
 	db	= require('larvitdb'),
-	fs	= require('fs');
+	fs	= require('fs'),
+	_	= require('lodash');
+
+let	intercomConfigFile;
 
 // Set up winston
 log.remove(log.transports.Console);
@@ -19,8 +26,6 @@ log.remove(log.transports.Console);
 before(function(done) {
 	this.timeout(10000);
 	const	tasks	= [];
-
-	let	intercomConfigFile;
 
 	// Run DB Setup
 	tasks.push(function(cb) {
@@ -102,11 +107,66 @@ before(function(done) {
 	async.series(tasks, done);
 });
 
-describe('foo', function() {
-	it('bar', function(done) {
-		setTimeout(function() {
-			done();
-		}, 19);
+describe('Server', function() {
+	it('should start up', function(done) {
+		const	intercom	= new Intercom(require(intercomConfigFile).default), // We need a separate intercom to be able to subscribe again to the exchange
+			options	= {'exchange': exchangeName},
+			sql	= 'CREATE TABLE `bosse` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY, `name` varchar(255) NOT NULL); INSERT INTO bosse (name) VALUES(\'duh\');';
+
+		this.slow(500);
+
+		options.dataDumpCmd = {
+			'command':	'echo',
+			'args':	[sql]
+		};
+
+		options['Content-Type'] = 'application/sql';
+
+		intercom.on('ready', function() {
+			log.verbose('new intercom is up');
+
+			new amsync.SyncServer(options, function(err) {
+				if (err) throw err;
+
+				log.verbose('syncServer started');
+
+				intercom.subscribe({'exchange': exchangeName}, function(message, ack) {
+					const	reqOptions	= {};
+
+					ack();
+
+					if (message.action !== 'dumpResponse') {
+						return;
+					}
+
+					assert(message.endpoints, 'message.endpoints must an array with entries');
+
+					if (message.endpoints[0].family === 'IPv6') {
+						reqOptions.uri = 'http://[' + message.endpoints[0].host + ']';
+					} else {
+						reqOptions.uri = 'http://' + message.endpoints[0].host;
+					}
+
+					reqOptions.uri	+= ':' + message.endpoints[0].port;
+					reqOptions.headers	= {'token': message.endpoints[0].token};
+
+					request(reqOptions, function(err, res, body) {
+						if (err) throw err;
+
+						assert.deepEqual(_.trim(body), _.trim(sql));
+						done();
+					});
+				}, function(err) {
+					if (err) throw err;
+
+					log.verbose('Subscribe is running');
+
+					intercom.send({'action': 'reqestDump'}, {'exchange': exchangeName}, function(err) {
+						if (err) throw err;
+					});
+				});
+			});
+		});
 	});
 });
 
