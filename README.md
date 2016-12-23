@@ -34,7 +34,35 @@ syncServer = new amsync.SyncServer(options, function(err) {
 });
 ```
 
-### MariaDB/MySQL Client (data slave)
+### Client (data slave)
+
+```javascript
+const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
+	amsync	= require('larvitamsync');
+
+amsync.reqSync(options, function(err, res) {
+	let	syncData	= '';
+
+	if (err) throw err;
+
+	// res is an instance of https://nodejs.org/api/http.html#http_class_http_incomingmessage
+
+	res.on('data', function(cunk) {
+		syncData += chunk.toString();
+	});
+
+	res.on('end', function() {
+		console.log('Got sync data:');
+		console.log(syncData);
+	});
+
+	res.on('error', function(err) {
+		throw err;
+	});
+});
+```
+
+#### MariaDB/MySQL
 
 For this to work, both larvitamintercom and larvitdb must be configured and up and running!
 
