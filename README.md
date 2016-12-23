@@ -79,7 +79,7 @@ For this to work, both larvitamintercom and larvitdb must be configured and up a
 const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
 	amsync	= require('larvitamsync');
 
-amsync.mariadb.reqSync(options, function(err) {
+amsync.mariadb(options, function(err) {
 	if (err) throw err;
 
 	console.log('Data synced!');
