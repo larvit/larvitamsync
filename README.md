@@ -25,7 +25,7 @@ options.dataDumpCmd = {
 // or
 options.dataDumpCmd = {
 	'command':	'mysqldump',
-	'args':	['-u', 'root', '-psecret', '--single-transaction', 'dbname', 'table1', ,'table2'],
+	'args':	['-u', 'root', '-psecret', '--single-transaction', 'dbname', 'table1', 'table2'],
 	'options':	{}
 };
 // or something else
