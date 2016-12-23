@@ -14,17 +14,22 @@ For this to work, larvitamintercom must be configured and up and running!
 const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
 	amsync	= require('larvitamsync');
 
+let	syncServer;
+
 // The stdout from this command will be piped to the data slave
 options.dataDumpCmd = 'cat /home/myself/dbdump.sql';
 // or
 options.dataDumpCmd = 'mysqldump -u root -psecret --single-transaction dbname table1 table2';
 // or something else
 
-amsync.mariadb.reqSync(options, function(err) {
+syncServer = new amsync.SyncServer(options, function(err) {
 	if (err) throw err;
 
-	console.log('Data synced!');
+	console.log('Server active');
 });
+
+// Not yet implemented
+//syncServer.close(); // To shut it down
 ```
 
 ### MariaDB/MySQL Client (data slave)
