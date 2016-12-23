@@ -11,7 +11,13 @@ const	lUtils	= require('larvitutils'),
 function SyncServer(options, cb) {
 	const	that	= this;
 
-	that.intercom	= lUtils.instances.intercom;
+	that.options	= options;
+
+	if (that.options.intercom) {
+		that.intercom = that.options.intercom;
+	} else {
+		that.intercom	= lUtils.instances.intercom;
+	}
 
 	// We are strictly in need of the intercom!
 	if ( ! (that.intercom instanceof require('larvitamintercom'))) {
@@ -20,16 +26,14 @@ function SyncServer(options, cb) {
 		throw err;
 	}
 
-	log.info('larvitamsync: syncServer.js - SyncServer started with options: ' + JSON.stringify(options));
+	log.info('larvitamsync: syncServer.js - SyncServer started');
 
-	if ( ! options.dataDumpCmd || ! options.dataDumpCmd.command) {
+	if ( ! that.options.dataDumpCmd || ! that.options.dataDumpCmd.command) {
 		const	err	= new Error('options.dataDumpCmd.command is a required option!');
 		log.warn('larvitamsync: syncServer.js - SyncServer() - Invalid options: ' + err.message);
 		cb(err);
 		return;
 	}
-
-	that.options	= options;
 
 	// Subscribe to dump requests
 	that.listenForRequests(cb);
@@ -126,7 +130,8 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 			}
 		}
 
-		log.info('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - http server started. Token: "' + token + '", endpoints: "' + JSON.stringify(message.endpoints) + '"');
+		log.info('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - http server started. Token: "' + token + '"');
+		log.verbose('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - http server started. Token: "' + token + '", endpoints: "' + JSON.stringify(message.endpoints) + '"');
 
 		that.intercom.send(message, {'exchange': that.options.exchange});
 	});

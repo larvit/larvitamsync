@@ -1,13 +1,15 @@
 'use strict';
 
-const	exchangeName	= 'test_dataDump',
-	Intercom	= require('larvitamintercom'),
+const	Intercom	= require('larvitamintercom'),
 	request	= require('request'),
 	assert	= require('assert'),
 	amsync	= require(__dirname + '/../index.js'),
 	lUtils	= require('larvitutils'),
 	async	= require('async'),
+	http	= require('http'),
 	log	= require('winston'),
+	os	= require('os'),
+	nics	= os.networkInterfaces(),
 	db	= require('larvitdb'),
 	fs	= require('fs'),
 	_	= require('lodash');
@@ -72,7 +74,7 @@ before(function(done) {
 		});
 	});
 
-	// Setup intercom
+	// Get intercom config file
 	tasks.push(function(cb) {
 		if (process.env.INTCONFFILE === undefined) {
 			intercomConfigFile = __dirname + '/../config/amqp_test.json';
@@ -109,21 +111,36 @@ before(function(done) {
 
 describe('Basics', function() {
 	it('server', function(done) {
-		const	intercom	= new Intercom(require(intercomConfigFile)), // We need a separate intercom to be able to subscribe again to the exchange
+		const	exchangeName	= 'test_dataDump_server',
+			intercom1	= new Intercom(require(intercomConfigFile)),
+			intercom2	= new Intercom(require(intercomConfigFile)),
 			options	= {'exchange': exchangeName},
 			tasks	= [],
 			sql	= 'CREATE TABLE `bosse` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY, `name` varchar(255) NOT NULL); INSERT INTO bosse (name) VALUES(\'duh\');';
 
+		let	msgHandled	= false;
+
 		this.slow(500);
+
+		intercom1.on('ready', function(err) {
+			if (err) throw err;
+			intercom1.ready = true;
+		});
+		intercom2.on('ready', function(err) {
+			if (err) throw err;
+			intercom2.ready = true;
+		});
 
 		function handleMsg(message, ack) {
 			const	reqOptions	= {};
 
 			ack();
 
-			if (message.action !== 'dumpResponse') {
+			if (message.action !== 'dumpResponse' || msgHandled !== false) {
 				return;
 			}
+
+			msgHandled = true;
 
 			assert(message.endpoints, 'message.endpoints must an array with entries');
 
@@ -144,9 +161,16 @@ describe('Basics', function() {
 			});
 		}
 
-		// Wait for the intercom to come online
+		// Wait for the intercoms to come online
 		tasks.push(function(cb) {
-			intercom.on('ready', cb);
+			function checkIfReady() {
+				if (intercom1.ready === true && intercom2.ready === true) {
+					cb();
+				} else {
+					setTimeout(checkIfReady, 10);
+				}
+			}
+			checkIfReady();
 		});
 
 		// Start server
@@ -156,19 +180,20 @@ describe('Basics', function() {
 				'args':	[sql]
 			};
 
-			options['Content-Type'] = 'application/sql';
+			options['Content-Type']	= 'application/sql';
+			options.intercom	= intercom2;
 
 			new amsync.SyncServer(options, cb);
 		});
 
-		// Subscribe to happenings on the queue on our new intercom
+		// Subscribe to happenings on the queue on intercom1
 		tasks.push(function(cb) {
-			intercom.subscribe({'exchange': exchangeName}, handleMsg, cb);
+			intercom1.subscribe({'exchange': exchangeName}, handleMsg, cb);
 		});
 
 		// Send the request to the queue
 		tasks.push(function(cb) {
-			intercom.send({'action': 'reqestDump'}, {'exchange': exchangeName}, cb);
+			intercom1.send({'action': 'reqestDump'}, {'exchange': exchangeName}, cb);
 		});
 
 		async.series(tasks, function(err) {
@@ -177,10 +202,23 @@ describe('Basics', function() {
 	});
 
 	it('client', function(done) {
-		const	msgContent	= 'wlüpp!',
-			intercom	= new Intercom(require(intercomConfigFile)), // We need a separate intercom to be able to subscribe again to the exchange
+		const	exchangeName	= 'test_dataDump_client',
+			msgContent	= 'wlüpp!',
+			intercom1	= new Intercom(require(intercomConfigFile)),
+			intercom2	= new Intercom(require(intercomConfigFile)),
 			token	= 'fjärtkorv',
 			tasks	= [];
+
+		this.slow(500);
+
+		intercom1.on('ready', function(err) {
+			if (err) throw err;
+			intercom1.ready = true;
+		});
+		intercom2.on('ready', function(err) {
+			if (err) throw err;
+			intercom2.ready = true;
+		});
 
 		function handleIncMsg(message, ack) {
 			ack();
@@ -193,10 +231,8 @@ describe('Basics', function() {
 
 			server = http.createServer(function(req, res) {
 				assert.deepEqual(req.headers.token, token);
-
 				res.writeHead(200, {'Content-Type': 'plain/text'});
 				res.end(msgContent);
-
 				server.close();
 			});
 			server.listen(0);
@@ -223,23 +259,32 @@ describe('Basics', function() {
 					}
 				}
 
-				that.intercom.send(message, {'exchange': exchangeName});
+				intercom1.send(message, {'exchange': exchangeName});
 			});
 		}
 
-		// Wait for the intercom to come online
+		// Wait for the intercoms to come online
 		tasks.push(function(cb) {
-			intercom.on('ready', cb);
+			function checkIfReady() {
+				if (intercom1.ready === true && intercom2.ready === true) {
+					cb();
+				} else {
+					setTimeout(checkIfReady, 10);
+				}
+			}
+			checkIfReady();
 		});
 
 		// Listen to the queue for dump requests
 		tasks.push(function(cb) {
-			intercom.subscribe({'exchange': exchangeName}, handleIncMsg, cb);
+			intercom1.subscribe({'exchange': exchangeName}, handleIncMsg, cb);
 		});
 
 		// Start client
 		tasks.push(function(cb) {
-			amsync.reqSync({'exchange': exchangeName}, function(err, res) {
+			const	options	= {'exchange': exchangeName, 'intercom': intercom2};
+
+			new amsync.SyncClient(options, function(err, res) {
 				let	syncData	= '';
 
 				if (err) {
