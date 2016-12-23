@@ -7,7 +7,6 @@ const	Intercom	= require('larvitamintercom'),
 	db	= require('larvitdb'),
 	fs	= require('fs');
 
-
 // Set up winston
 log.remove(log.transports.Console);
 /**/log.add(log.transports.Console, {
