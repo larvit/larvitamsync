@@ -91,7 +91,7 @@ before(function(done) {
 				fs.stat(intercomConfigFile, function(err) {
 					if (err) throw err;
 					log.verbose('Intercom config: ' + JSON.stringify(require(intercomConfigFile)));
-					lUtils.instances.intercom = new Intercom(require(intercomConfigFile).default);
+					lUtils.instances.intercom = new Intercom(require(intercomConfigFile));
 					lUtils.instances.intercom.on('ready', cb);
 				});
 
@@ -99,7 +99,7 @@ before(function(done) {
 			}
 
 			log.verbose('Intercom config: ' + JSON.stringify(require(intercomConfigFile)));
-			lUtils.instances.intercom = new Intercom(require(intercomConfigFile).default);
+			lUtils.instances.intercom = new Intercom(require(intercomConfigFile));
 			lUtils.instances.intercom.on('ready', cb);
 		});
 	});
@@ -109,7 +109,7 @@ before(function(done) {
 
 describe('Basics', function() {
 	it('server', function(done) {
-		const	intercom	= new Intercom(require(intercomConfigFile).default), // We need a separate intercom to be able to subscribe again to the exchange
+		const	intercom	= new Intercom(require(intercomConfigFile)), // We need a separate intercom to be able to subscribe again to the exchange
 			options	= {'exchange': exchangeName},
 			tasks	= [],
 			sql	= 'CREATE TABLE `bosse` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY, `name` varchar(255) NOT NULL); INSERT INTO bosse (name) VALUES(\'duh\');';
@@ -176,9 +176,94 @@ describe('Basics', function() {
 		});
 	});
 
-//	it('client', function(done) {
-//
-//	});
+	it('client', function(done) {
+		const	msgContent	= 'wlüpp!',
+			intercom	= new Intercom(require(intercomConfigFile)), // We need a separate intercom to be able to subscribe again to the exchange
+			token	= 'fjärtkorv',
+			tasks	= [];
+
+		function handleIncMsg(message, ack) {
+			ack();
+
+			if (message.action !== 'reqestDump') {
+				return;
+			}
+
+			let	server;
+
+			server = http.createServer(function(req, res) {
+				assert.deepEqual(req.headers.token, token);
+
+				res.writeHead(200, {'Content-Type': 'plain/text'});
+				res.end(msgContent);
+
+				server.close();
+			});
+			server.listen(0);
+			server.on('error', function(err) {
+				throw err;
+			});
+
+			server.on('listening', function() {
+				const	servedPort	= server.address().port,
+					message	= {'action': 'dumpResponse', 'endpoints': []};
+
+				for (const nic of Object.keys(nics)) {
+					for (let i = 0; nics[nic][i] !== undefined; i ++) {
+						const	nicAddress	= nics[nic][i];
+
+						if (nicAddress.internal === false) {
+							message.endpoints.push({
+								'family':	nicAddress.family,
+								'host':	nicAddress.address,
+								'port':	servedPort,
+								'token':	token
+							});
+						}
+					}
+				}
+
+				that.intercom.send(message, {'exchange': exchangeName});
+			});
+		}
+
+		// Wait for the intercom to come online
+		tasks.push(function(cb) {
+			intercom.on('ready', cb);
+		});
+
+		// Listen to the queue for dump requests
+		tasks.push(function(cb) {
+			intercom.subscribe({'exchange': exchangeName}, handleIncMsg, cb);
+		});
+
+		// Start client
+		tasks.push(function(cb) {
+			amsync.reqSync({'exchange': exchangeName}, function(err, res) {
+				let	syncData	= '';
+
+				if (err) {
+					cb(err);
+					return;
+				}
+
+				res.on('data', function(chunk) {
+					syncData += chunk.toString();
+				});
+
+				res.on('end', function() {
+					assert.deepEqual(syncData, msgContent);
+					done();
+				});
+
+				res.on('error', cb);
+			});
+		});
+
+		async.series(tasks, function(err) {
+			if (err) throw err;
+		});
+	});
 });
 
 after(function(done) {
