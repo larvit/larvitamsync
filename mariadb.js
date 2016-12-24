@@ -47,7 +47,13 @@ function sync(options, cb) {
 				log.info('larvitamsync: ./mariadb.js - sync() - Database synced!');
 			}
 
-			cb(err);
+			dbCon.end(function(err) {
+				if (err) {
+					log.warn('larvitamsync: ./mariadb.js - sync() - Could not end() database connection, err: ' + err.message);
+				}
+
+				cb(err);
+			});
 		});
 	});
 
