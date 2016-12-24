@@ -1,6 +1,6 @@
 {
   "name": "larvitamsync",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Sync data between minions",
   "main": "index.js",
   "directories": {
@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "async": "^2.1.4",
-    "larvitamsync": "^0.1.4",
     "larvitdb": "^1.2.5",
     "larvitutils": "^1.1.0",
     "lodash": "^4.17.2",
