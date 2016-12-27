@@ -50,19 +50,19 @@ const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be uni
 	amsync	= require('larvitamsync');
 
 new amsync.SyncClient(options, function(err, res) {
-	let	syncData	= '';
+	let	syncData	= Buffer.from('');
 
 	if (err) throw err;
 
 	// res is an instance of https://nodejs.org/api/http.html#http_class_http_incomingmessage
 
 	res.on('data', function(chunk) {
-		syncData += chunk.toString();
+		syncData	=	Buffer.concat([syncData, chunk], syncData.length + chunk.length);
 	});
 
 	res.on('end', function() {
 		console.log('Got sync data:');
-		console.log(syncData);
+		console.log(syncData.toString());
 	});
 
 	res.on('error', function(err) {

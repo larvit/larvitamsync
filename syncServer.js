@@ -92,7 +92,7 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 
 		dumpProcess.stdout.on('data', function(data) {
 			writeHeaders();
-			res.write(data.toString());
+			res.write(data);
 		});
 
 		dumpProcess.stderr.on('data', function(data) {

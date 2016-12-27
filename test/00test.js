@@ -285,19 +285,16 @@ describe('Basics', function() {
 			const	options	= {'exchange': exchangeName, 'intercom': intercom2};
 
 			new amsync.SyncClient(options, function(err, res) {
-				let	syncData	= '';
+				let	syncData	= Buffer.from('');
 
-				if (err) {
-					cb(err);
-					return;
-				}
+				if (err) { cb(err); return; }
 
 				res.on('data', function(chunk) {
-					syncData += chunk.toString();
+					syncData	=	Buffer.concat([syncData, chunk], syncData.length + chunk.length);
 				});
 
 				res.on('end', function() {
-					assert.deepEqual(syncData, msgContent);
+					assert.deepEqual(syncData.toString(), msgContent);
 					done();
 				});
 
