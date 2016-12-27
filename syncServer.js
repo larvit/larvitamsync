@@ -72,11 +72,17 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 		dumpProcess	= spawn(that.options.dataDumpCmd.command, that.options.dataDumpCmd.args, that.options.dataDumpCmd.options);
 
 		function writeHeaders() {
+			let	contentType	= that.options['Content-Type'];
+
+			if ( ! contentType) {
+				contentType = 'Application/Octet-stream';
+			}
+
 			if (headersWritten === false) {
 				log.debug('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - handelReq() - writeHeaderes() - Writing headers');
 				res.writeHead(200, {
 					'Connection':	'Transfer-Encoding',
-					'Content-Type':	that.options['Content-Type'],
+					'Content-Type':	contentType,
 					'Transfer-Encoding':	'chunked'
 				});
 
@@ -102,6 +108,7 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 		});
 
 		dumpProcess.on('error', function(err) {
+			log.warn('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - handleReq() - Token: "' + token + '". Non-0 exit code from dumpProcess. err: ' + err.message);
 			res.writeHead(500, { 'Content-Type':	'text/plain' });
 			res.end('Process error: ' + err.message);
 		});
