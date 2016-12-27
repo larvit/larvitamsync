@@ -1,6 +1,7 @@
 'use strict';
 
-const	lUtils	= require('larvitutils'),
+const	Intercom	= require('larvitamintercom'),
+	lUtils	= require('larvitutils'),
 	http	= require('http'),
 	log	= require('winston');
 
@@ -18,25 +19,30 @@ function SyncClient(options, cb) {
 	}
 
 	// We are strictly in need of the intercom!
-	if ( ! (that.intercom instanceof require('larvitamintercom'))) {
+	if ( ! (that.intercom instanceof Intercom)) {
 		const	err	= new Error('larvitutils.instances.intercom is not an instance of Intercom!');
 		log.error('larvitamsync: syncClient.js - ' + err.message);
 		throw err;
 	}
 
-	log.info('larvitamsync: syncClient.js - SyncClient started');
-
-	that.options	= options;
-
-	that.intercom.subscribe({'exchange': that.options.exchange}, function(message, ack) {
-		// We do this weirdness because it seems that becomes undefined if we pass it directly as a parameter
-		that.handleMsg(message, ack, cb);
-	}, function(err, result) {
+	// Reconnect so we have a fresh instance of intercom so we do not interfer with others
+	that.intercom = new Intercom(that.intercom.conStr);
+	that.intercom.on('ready', function(err) {
 		if (err) { cb(err); return; }
 
-		that.subscribeInstance = result;
-		that.intercom.send({'action': 'reqestDump'}, {'exchange': that.options.exchange}, function(err) {
+		log.info('larvitamsync: syncClient.js - SyncClient started');
+
+		that.options	= options;
+
+		that.intercom.subscribe({'exchange': that.options.exchange}, function(message, ack) {
+			// We do this weirdness because it seems that becomes undefined if we pass it directly as a parameter
+			that.handleMsg(message, ack, cb);
+		}, function(err) {
 			if (err) { cb(err); return; }
+
+			that.intercom.send({'action': 'reqestDump'}, {'exchange': that.options.exchange}, function(err) {
+				if (err) { cb(err); return; }
+			});
 		});
 	});
 }
@@ -100,7 +106,7 @@ SyncClient.prototype.handleMsg = function(message, ack, cb) {
 		cb(err);
 	});
 
-	that.subscribeInstance.cancel();
+	that.intercom.close();
 };
 
 exports = module.exports = SyncClient;
