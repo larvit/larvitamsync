@@ -31,9 +31,10 @@ function SyncClient(options, cb) {
 	that.intercom.subscribe({'exchange': that.options.exchange}, function(message, ack) {
 		// We do this weirdness because it seems that becomes undefined if we pass it directly as a parameter
 		that.handleMsg(message, ack, cb);
-	}, function(err) {
+	}, function(err, result) {
 		if (err) { cb(err); return; }
 
+		that.subscribeInstance = result;
 		that.intercom.send({'action': 'reqestDump'}, {'exchange': that.options.exchange}, function(err) {
 			if (err) { cb(err); return; }
 		});
@@ -98,6 +99,8 @@ SyncClient.prototype.handleMsg = function(message, ack, cb) {
 		log.error('larvitamsync: syncClient.js - SyncClient.handleMsg() - Request failed: ' + err.message);
 		cb(err);
 	});
+
+	that.subscribeInstance.cancel();
 };
 
 exports = module.exports = SyncClient;
