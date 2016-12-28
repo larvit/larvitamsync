@@ -10,6 +10,38 @@ Sync data between minions
 
 For this to work, larvitamintercom must be configured and up and running!
 
+#### Simple command
+
+```javascript
+const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
+	amsync	= require('larvitamsync');
+
+// The stdout from this command will be piped to the data slave
+// This will be be the input for the
+// https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
+options.dataDumpCmd = {
+	'command':	'cat',
+	'args':	['/home/myself/dbdump.sql'],
+	'options':	{}
+};
+// or pipe directly from mysqldump:
+options.dataDumpCmd = {
+	'command':	'mysqldump',
+	'args':	['-u', 'root', '-psecret', '--single-transaction', 'dbname', 'table1', 'table2'],
+	'options':	{}
+};
+
+new amsync.SyncServer(options, function(err) {
+	if (err) throw err;
+
+	console.log('Server active');
+});
+```
+
+#### Custom http request handler
+
+On each data dump request there is a http request and this can be handled manually
+
 ```javascript
 const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
 	amsync	= require('larvitamsync');
@@ -30,22 +62,8 @@ options.dataDumpCmd = {
 	'args':	['-u', 'root', '-psecret', '--single-transaction', 'dbname', 'table1', 'table2'],
 	'options':	{}
 };
-// or something else
 
-// Optional Content-Type header can be set like this:
-options['Content-Type'] = 'application/sql';
-
-// Returns https://nodejs.org/api/http.html#http_class_http_server
-syncServer = new amsync.SyncServer(options);
-
-syncServer.inc
-
-, function(reqData, res) {
-	// reqData is equal to whats sent in to options.data in syncClient(). See below for details.
-	// res is a standard instance of the second parameter to requestListener: https://nodejs.org/api/http.html#http_http_createserver_requestlistener
-
-
-}, function(err) {
+new amsync.SyncServer(options, function(err) {
 	if (err) throw err;
 
 	console.log('Server active');

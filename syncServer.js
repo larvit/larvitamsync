@@ -1,7 +1,7 @@
 'use strict';
 
-const	lUtils	= require('larvitutils'),
-	uuidLib	= require('uuid'),
+const	uuidLib	= require('uuid'),
+	lUtils	= require('larvitutils'),
 	spawn	= require('child_process').spawn,
 	http	= require('http'),
 	log	= require('winston'),
@@ -39,6 +39,48 @@ function SyncServer(options, cb) {
 	that.listenForRequests(cb);
 }
 
+SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
+	const	that	= this;
+
+	let	dumpProcess;
+
+	if (req.headers.token !== req.token) {
+		log.info('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Token: "' + req.token + '". Incoming message. Invalid token detected: "' + req.headers.token + '"');
+		res.writeHead(401, {'Content-Type': 'text/plain; charset=utf-8'});
+		res.end('Unauthorized');
+		return;
+	}
+
+	log.verbose('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Token: "' + req.token + '". Incoming message with valid token.');
+
+	dumpProcess	= spawn(that.options.dataDumpCmd.command, that.options.dataDumpCmd.args, that.options.dataDumpCmd.options);
+
+	if ( ! res.getHeader('Content-Type'))	{ res.setHeader('Content-Type',	'Application/Octet-stream');	}
+	if ( ! res.getHeader('Connection'))	{ res.setHeader('Connection',	'Transfer-Encoding');	}
+	if ( ! res.getHeader('Transfer-Encoding'))	{ res.setHeader('Connection',	'chunked');	}
+
+	dumpProcess.stdout.on('data', function(data) {
+		res.write(data);
+	});
+
+	dumpProcess.stderr.on('data', function(data) {
+		log.error('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Token: "' + req.token + '". Error from dump command: ' + data.toString());
+	});
+
+	dumpProcess.on('close', function() {
+		log.debug('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Token: "' + req.token + '". Dump command closed.');
+		res.end();
+		clearTimeout(req.serverTimeout);
+		req.server.close();
+	});
+
+	dumpProcess.on('error', function(err) {
+		log.warn('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Token: "' + req.token + '". Non-0 exit code from dumpProcess. err: ' + err.message);
+		res.writeHead(500, { 'Content-Type':	'text/plain' });
+		res.end('Process error: ' + err.message);
+	});
+};
+
 SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 	const	token	= uuidLib.v4(),
 		that	= this;
@@ -56,65 +98,14 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 
 	log.debug('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - Token: "' + token + '". Dump requested, starting http server.');
 
-	function handleReq(req, res) {
-		let	headersWritten	= false,
-			dumpProcess;
+	server = http.createServer(function(req, res) {
+		req.server	= server;
+		req.serverTimeout	= serverTimeout;
+		req.that	= that;
+		req.token	= token;
 
-		if (req.headers.token !== token) {
-			log.info('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - handleReq() - Token: "' + token + '". Incoming message. Invalid token detected: "' + req.headers.token + '"');
-			res.writeHead(401, {'Content-Type': 'text/plain; charset=utf-8'});
-			res.end('Unauthorized');
-			return;
-		}
-
-		log.verbose('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - handleReq() - Token: "' + token + '". Incoming message with valid token.');
-
-		dumpProcess	= spawn(that.options.dataDumpCmd.command, that.options.dataDumpCmd.args, that.options.dataDumpCmd.options);
-
-		function writeHeaders() {
-			let	contentType	= that.options['Content-Type'];
-
-			if ( ! contentType) {
-				contentType = 'Application/Octet-stream';
-			}
-
-			if (headersWritten === false) {
-				log.debug('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - handelReq() - writeHeaderes() - Writing headers');
-				res.writeHead(200, {
-					'Connection':	'Transfer-Encoding',
-					'Content-Type':	contentType,
-					'Transfer-Encoding':	'chunked'
-				});
-
-				headersWritten = true;
-			}
-		}
-
-		dumpProcess.stdout.on('data', function(data) {
-			writeHeaders();
-			res.write(data);
-		});
-
-		dumpProcess.stderr.on('data', function(data) {
-			log.error('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - handleReq() - Token: "' + token + '". Error from dump command: ' + data.toString());
-		});
-
-		dumpProcess.on('close', function() {
-			log.debug('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - handleReq() - Token: "' + token + '". Dump command closed.');
-			writeHeaders();
-			res.end();
-			clearTimeout(serverTimeout);
-			server.close();
-		});
-
-		dumpProcess.on('error', function(err) {
-			log.warn('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - handleReq() - Token: "' + token + '". Non-0 exit code from dumpProcess. err: ' + err.message);
-			res.writeHead(500, { 'Content-Type':	'text/plain' });
-			res.end('Process error: ' + err.message);
-		});
-	}
-
-	server	= http.createServer(handleReq);
+		that.handleHttpReq(req, res);
+	});
 	server.listen(0);
 
 	server.on('listening', function() {
