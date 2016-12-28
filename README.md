@@ -14,6 +14,8 @@ For this to work, larvitamintercom must be configured and up and running!
 const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
 	amsync	= require('larvitamsync');
 
+let	syncServer;
+
 // The stdout from this command will be piped to the data slave
 // This will be be the input for the
 // https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
@@ -22,7 +24,7 @@ options.dataDumpCmd = {
 	'args':	['/home/myself/dbdump.sql'],
 	'options':	{}
 };
-// or
+// or pipe directly from mysqldump:
 options.dataDumpCmd = {
 	'command':	'mysqldump',
 	'args':	['-u', 'root', '-psecret', '--single-transaction', 'dbname', 'table1', 'table2'],
@@ -34,7 +36,16 @@ options.dataDumpCmd = {
 options['Content-Type'] = 'application/sql';
 
 // Returns https://nodejs.org/api/http.html#http_class_http_server
-new amsync.SyncServer(options, function(err) {
+syncServer = new amsync.SyncServer(options);
+
+syncServer.inc
+
+, function(reqData, res) {
+	// reqData is equal to whats sent in to options.data in syncClient(). See below for details.
+	// res is a standard instance of the second parameter to requestListener: https://nodejs.org/api/http.html#http_http_createserver_requestlistener
+
+
+}, function(err) {
 	if (err) throw err;
 
 	console.log('Server active');
@@ -46,8 +57,11 @@ new amsync.SyncServer(options, function(err) {
 For this to work, larvitamintercom must be configured and up and running!
 
 ```javascript
-const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
+const	options	= {},
 	amsync	= require('larvitamsync');
+
+options.exchange	= 'test_dataDump';	// RabbitMQ exchange, must be unique on the queue
+options.data	= {'foo': 'bar'};	// Optional data to be sent to the data server
 
 new amsync.SyncClient(options, function(err, res) {
 	let	syncData	= Buffer.from('');
