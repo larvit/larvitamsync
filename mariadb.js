@@ -32,8 +32,23 @@ function sync(options, cb) {
 
 	// Read SQL file to database
 	tasks.push(function(cb) {
-		const	f	= fs.openSync(tmpFileName, 'r'),
-			shMysql	= spawn('mysql', ['-h', db.conf.host, '-u', db.conf.user, '-p' + db.conf.password, db.conf.database], {'stdio': [f, 'pipe', process.stderr]});
+		const	mysqlOptions	= [],
+			f	= fs.openSync(tmpFileName, 'r');
+
+		mysqlOptions.push('-h');
+		mysqlOptions.push(db.conf.host);
+		mysqlOptions.push('-u');
+		mysqlOptions.push(db.conf.user);
+
+		if (db.conf.password) {
+			mysqlOptions.push('-p' + db.conf.password);
+		}
+
+		mysqlOptions.push(db.conf.database);
+
+		let shMysql;
+
+		shMysql	= spawn('mysql', mysqlOptions, {'stdio': [f, 'pipe', process.stderr]});
 
 		shMysql.on('close', function() {
 			log.info('larvitamsync: ./mariadb.js - sync() - Database synced!');
