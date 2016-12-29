@@ -58,7 +58,12 @@ function sync(options, cb) {
 
 	// Remote tmp SQL file
 	tasks.push(function(cb) {
-		fs.unlink(tmpFileName, cb);
+		fs.unlink(tmpFileName, function(err) {
+			if (err) {
+				log.warn('larvitamsync: ./mariadb.js - sync() - Could not remove ' + tmpFilename + ' err: ' + err.message);
+			}
+			cb(err);
+		});
 	});
 
 	async.series(tasks, cb);
