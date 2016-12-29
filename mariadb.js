@@ -2,13 +2,12 @@
 
 const	SyncClient	= require(__dirname + '/syncClient.js'),
 	uuidLib	= require('uuid'),
-	mysql	= require('mysql2'),
+	spawn	= require('child_process').spawn,
 	async	= require('async'),
 	log	= require('winston'),
 	db	= require('larvitdb'),
 	os	= require('os'),
-	fs	= require('fs'),
-	_	= require('lodash');
+	fs	= require('fs');
 
 function sync(options, cb) {
 	const	tmpFileName	= os.tmpdir() + '/tmp_' + uuidLib.v4() + '.sql',
@@ -33,27 +32,12 @@ function sync(options, cb) {
 
 	// Read SQL file to database
 	tasks.push(function(cb) {
-		const	localDbConf	= _.cloneDeep(db.conf);
+		const	f	= fs.openSync(tmpFileName, 'r'),
+			shMysql	= spawn('mysql', ['-h', db.conf.host, '-u', db.conf.user, '-p' + db.conf.password, db.conf.database], {'stdio': [f, 'pipe', process.stderr]});
 
-		let	dbCon;
-
-		localDbConf.multipleStatements	= true;
-		dbCon	= mysql.createConnection(localDbConf);
-
-		dbCon.query(fs.readFileSync(tmpFileName).toString(), function(err) {
-			if (err) {
-				log.error('larvitamsync: ./mariadb.js - sync() - SQL error: ' + err.message);
-			} else {
-				log.info('larvitamsync: ./mariadb.js - sync() - Database synced!');
-			}
-
-			dbCon.end(function(err) {
-				if (err) {
-					log.warn('larvitamsync: ./mariadb.js - sync() - Could not end() database connection, err: ' + err.message);
-				}
-
-				cb(err);
-			});
+		shMysql.on('close', function() {
+			log.info('larvitamsync: ./mariadb.js - sync() - Database synced!');
+			cb();
 		});
 	});
 
