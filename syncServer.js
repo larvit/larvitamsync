@@ -28,13 +28,6 @@ function SyncServer(options, cb) {
 
 	log.info('larvitamsync: syncServer.js - SyncServer started');
 
-	if ( ! that.options.dataDumpCmd || ! that.options.dataDumpCmd.command) {
-		const	err	= new Error('options.dataDumpCmd.command is a required option!');
-		log.warn('larvitamsync: syncServer.js - SyncServer() - Invalid options: ' + err.message);
-		cb(err);
-		return;
-	}
-
 	// Subscribe to dump requests
 	that.listenForRequests(cb);
 }
@@ -48,6 +41,14 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 		log.info('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Token: "' + req.token + '". Incoming message. Invalid token detected: "' + req.headers.token + '"');
 		res.writeHead(401, {'Content-Type': 'text/plain; charset=utf-8'});
 		res.end('Unauthorized');
+		return;
+	}
+
+	if ( ! that.options.dataDumpCmd || ! that.options.dataDumpCmd.command) {
+		const	err	= new Error('options.dataDumpCmd.command is a required option!');
+		log.error('larvitamsync: syncServer.js - handleHttpReq() - Invalid options: ' + err.message);
+		res.writeHead(500, { 'Content-Type':	'text/plain' });
+		res.end('Internal server error');
 		return;
 	}
 

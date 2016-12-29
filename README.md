@@ -48,26 +48,29 @@ const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be uni
 
 let	syncServer;
 
-// The stdout from this command will be piped to the data slave
-// This will be be the input for the
-// https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
-options.dataDumpCmd = {
-	'command':	'cat',
-	'args':	['/home/myself/dbdump.sql'],
-	'options':	{}
-};
-// or pipe directly from mysqldump:
-options.dataDumpCmd = {
-	'command':	'mysqldump',
-	'args':	['-u', 'root', '-psecret', '--single-transaction', 'dbname', 'table1', 'table2'],
-	'options':	{}
-};
-
-new amsync.SyncServer(options, function(err) {
+syncServer = new amsync.SyncServer(options, function(err) {
 	if (err) throw err;
 
 	console.log('Server active');
 });
+
+syncServer.handleHttpReq_original = syncServer.handleHttpReq;
+
+syncServer.handleHttpReq = function(req, res) {
+
+	// Set custom content type
+	res.setHeader('Content-Type', 'text/plain');
+
+	// Run different commands depending on request url
+	if (req.url === '/') {
+		syncServer.options.dataDumpCmd = {'command': 'echo', 'args': ['blergh']};
+	} else {
+		syncServer.options.dataDumpCmd = {'command': 'echo', 'args': [req.url]};
+	}
+
+	// Run the original request handler
+	syncServer.handleHttpReq_original(req, res);
+}
 ```
 
 ### Client (data slave)
@@ -79,7 +82,9 @@ const	options	= {},
 	amsync	= require('larvitamsync');
 
 options.exchange	= 'test_dataDump';	// RabbitMQ exchange, must be unique on the queue
-options.data	= {'foo': 'bar'};	// Optional data to be sent to the data server
+options.requestOptions	= {'path': '/foobar'};	// Optional extra options to
+		// https://www.npmjs.com/package/request that
+		// is used to request stuff from the server
 
 new amsync.SyncClient(options, function(err, res) {
 	let	syncData	= Buffer.from('');

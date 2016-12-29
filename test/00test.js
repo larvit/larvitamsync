@@ -380,6 +380,96 @@ describe('Database', function() {
 	});
 });
 
+describe('Custom http receiver', function() {
+	it('should read path', function(done) {
+		const	exchangeName	= 'test_dataDump_custom',
+			intercom1	= new Intercom(require(intercomConfigFile)),
+			intercom2	= new Intercom(require(intercomConfigFile)),
+			tasks	= [];
+
+		this.slow(500);
+
+		intercom1.on('ready', function(err) {
+			if (err) throw err;
+			intercom1.ready = true;
+		});
+		intercom2.on('ready', function(err) {
+			if (err) throw err;
+			intercom2.ready = true;
+		});
+
+		// Wait for the intercoms to come online
+		tasks.push(function(cb) {
+			function checkIfReady() {
+				if (intercom1.ready === true && intercom2.ready === true) {
+					cb();
+				} else {
+					setTimeout(checkIfReady, 10);
+				}
+			}
+			checkIfReady();
+		});
+
+		// Start server
+		tasks.push(function(cb) {
+			const	options	= {'exchange': exchangeName};
+
+			let	syncServer;
+
+			syncServer = new amsync.SyncServer(options, cb);
+
+			syncServer.handleHttpReq_original = syncServer.handleHttpReq;
+
+			syncServer.handleHttpReq = function(req, res) {
+
+				// Set custom content type
+				res.setHeader('Content-Type', 'text/plain');
+				//console.log(req);
+				// Run different commands depending on request url
+				if (req.url === '/') {
+					syncServer.options.dataDumpCmd = {'command': 'echo', 'args': ['-n', 'blergh']};
+				} else {
+					syncServer.options.dataDumpCmd = {'command': 'echo', 'args': ['-n', req.url]};
+				}
+
+				// Run the original request handler
+				syncServer.handleHttpReq_original(req, res);
+			};
+		});
+
+		// Start the client
+		tasks.push(function(cb) {
+			const	options	= {'exchange': exchangeName};
+
+			options.requestOptions	= {'path': '/foobar'};
+
+			new amsync.SyncClient(options, function(err, res) {
+				let	syncData	= Buffer.from('');
+
+				if (err) throw err;
+
+				res.on('data', function(chunk) {
+					syncData	=	Buffer.concat([syncData, chunk], syncData.length + chunk.length);
+				});
+
+				res.on('end', function() {
+					assert.deepEqual(syncData.toString(), options.requestOptions.path);
+					cb();
+				});
+
+				res.on('error', function(err) {
+					throw err;
+				});
+			});
+		});
+
+		async.series(tasks, function(err) {
+			if (err) throw err;
+			done();
+		});
+	});
+});
+
 after(function(done) {
 	db.removeAllTables(done);
 });

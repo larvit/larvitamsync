@@ -85,6 +85,12 @@ SyncClient.prototype.handleMsg = function(message, ack, cb) {
 	reqOptions.port	= message.endpoints[0].port;
 	reqOptions.headers	= {'token': message.endpoints[0].token};
 
+	if (that.options.requestOptions !== undefined) {
+		for (const key of Object.keys(that.options.requestOptions)) {
+			reqOptions[key] = that.options.requestOptions[key];
+		}
+	}
+
 	log.verbose('larvitamsync: syncClient.js - SyncClient.handleMsg() - Sending request: "' + JSON.stringify(reqOptions) + '"');
 
 	req = http.request(reqOptions, function(res) {
