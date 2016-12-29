@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/larvit/larvitamsync#readme",
   "devDependencies": {
+    "lodash": "^4.17.3",
     "mocha": "^3.2.0",
     "mocha-eslint": "^3.0.1",
     "request": "^2.79.0"
