@@ -11,7 +11,10 @@ const	SyncClient	= require(__dirname + '/syncClient.js'),
 
 function sync(options, cb) {
 	const	tmpFileName	= os.tmpdir() + '/tmp_' + uuidLib.v4() + '.sql',
-		tasks	= [];
+		tasks	= [],
+		that	= this;
+
+	that.options = options;
 
 	// Write tmp SQL file to disk
 	tasks.push(function(cb) {
@@ -51,7 +54,7 @@ function sync(options, cb) {
 		shMysql	= spawn('mysql', mysqlOptions, {'stdio': [f, 'pipe', process.stderr]});
 
 		shMysql.on('close', function() {
-			log.info('larvitamsync: ./mariadb.js - sync() - Database synced!');
+			log.info('larvitamsync: ./mariadb.js - sync() - Database synced on exchange: "' + that.options.exchange + '"');
 			cb();
 		});
 	});

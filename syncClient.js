@@ -30,7 +30,7 @@ function SyncClient(options, cb) {
 	that.intercom.on('ready', function(err) {
 		if (err) { cb(err); return; }
 
-		log.info('larvitamsync: syncClient.js - SyncClient started');
+		log.info('larvitamsync: syncClient.js - SyncClient started on exchange: "' + that.options.exchange + '"');
 
 		that.options	= options;
 

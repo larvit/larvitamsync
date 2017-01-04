@@ -26,7 +26,7 @@ function SyncServer(options, cb) {
 		throw err;
 	}
 
-	log.info('larvitamsync: syncServer.js - SyncServer started');
+	log.info('larvitamsync: syncServer.js - SyncServer started on exchange: "' + that.options.exchange + '"');
 
 	// Subscribe to dump requests
 	that.listenForRequests(cb);
