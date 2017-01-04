@@ -122,15 +122,6 @@ describe('Basics', function() {
 
 		this.slow(500);
 
-		intercom1.on('ready', function(err) {
-			if (err) throw err;
-			intercom1.ready = true;
-		});
-		intercom2.on('ready', function(err) {
-			if (err) throw err;
-			intercom2.ready = true;
-		});
-
 		function handleMsg(message, ack) {
 			const	reqOptions	= {};
 
@@ -160,18 +151,6 @@ describe('Basics', function() {
 				done();
 			});
 		}
-
-		// Wait for the intercoms to come online
-		tasks.push(function(cb) {
-			function checkIfReady() {
-				if (intercom1.ready === true && intercom2.ready === true) {
-					cb();
-				} else {
-					setTimeout(checkIfReady, 10);
-				}
-			}
-			checkIfReady();
-		});
 
 		// Start server
 		tasks.push(function(cb) {
@@ -210,15 +189,6 @@ describe('Basics', function() {
 			tasks	= [];
 
 		this.slow(500);
-
-		intercom1.on('ready', function(err) {
-			if (err) throw err;
-			intercom1.ready = true;
-		});
-		intercom2.on('ready', function(err) {
-			if (err) throw err;
-			intercom2.ready = true;
-		});
 
 		function handleIncMsg(message, ack) {
 			ack();
@@ -263,18 +233,6 @@ describe('Basics', function() {
 			});
 		}
 
-		// Wait for the intercoms to come online
-		tasks.push(function(cb) {
-			function checkIfReady() {
-				if (intercom1.ready === true && intercom2.ready === true) {
-					cb();
-				} else {
-					setTimeout(checkIfReady, 10);
-				}
-			}
-			checkIfReady();
-		});
-
 		// Listen to the queue for dump requests
 		tasks.push(function(cb) {
 			intercom1.subscribe({'exchange': exchangeName}, handleIncMsg, cb);
@@ -316,27 +274,6 @@ describe('Database', function() {
 			tasks	= [];
 
 		this.slow(500);
-
-		intercom1.on('ready', function(err) {
-			if (err) throw err;
-			intercom1.ready = true;
-		});
-		intercom2.on('ready', function(err) {
-			if (err) throw err;
-			intercom2.ready = true;
-		});
-
-		// Wait for the intercoms to come online
-		tasks.push(function(cb) {
-			function checkIfReady() {
-				if (intercom1.ready === true && intercom2.ready === true) {
-					cb();
-				} else {
-					setTimeout(checkIfReady, 10);
-				}
-			}
-			checkIfReady();
-		});
 
 		// Start server
 		tasks.push(function(cb) {

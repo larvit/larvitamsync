@@ -129,14 +129,14 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 			}
 		}
 
-		log.info('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - http server started. Token: "' + token + '"');
-		log.verbose('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - http server started. Token: "' + token + '", endpoints: "' + JSON.stringify(message.endpoints) + '"');
+		log.info('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - Exchange: "' + that.options.exchange + '", Token: "' + token + '" http server started.');
+		log.verbose('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - Exchange: "' + that.options.exchange + '", Token: "' + token + '" http server started. Endpoints: "' + JSON.stringify(message.endpoints) + '"');
 
 		that.intercom.send(message, {'exchange': that.options.exchange});
 	});
 
 	serverTimeout = setTimeout(function() {
-		log.verbose('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - Token: "' + token + '". http server stopped due to timeout since no request came in.');
+		log.verbose('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - Exchange: "' + that.options.exchange + '", Token: "' + token + '". http server stopped due to timeout since no request came in.');
 		server.close();
 	}, 60000);
 };
