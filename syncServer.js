@@ -38,7 +38,7 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 	let	dumpProcess;
 
 	if (req.headers.token !== req.token) {
-		log.info('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Token: "' + req.token + '". Incoming message. Invalid token detected: "' + req.headers.token + '"');
+		log.info('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Exchange: "' + that.options.exchange + '", Token: "' + req.token + '". Incoming message. Invalid token detected: "' + req.headers.token + '"');
 		res.writeHead(401, {'Content-Type': 'text/plain; charset=utf-8'});
 		res.end('Unauthorized');
 		return;
@@ -52,7 +52,7 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 		return;
 	}
 
-	log.verbose('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Token: "' + req.token + '". Incoming message with valid token.');
+	log.verbose('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Exchange: "' + that.options.exchange + '", Token: "' + req.token + '". Incoming message with valid token.');
 
 	dumpProcess	= spawn(that.options.dataDumpCmd.command, that.options.dataDumpCmd.args, that.options.dataDumpCmd.options);
 
@@ -65,18 +65,18 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 	});
 
 	dumpProcess.stderr.on('data', function(data) {
-		log.error('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Token: "' + req.token + '". Error from dump command: ' + data.toString());
+		log.error('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Exchange: "' + that.options.exchange + '", Token: "' + req.token + '". Error from dump command: ' + data.toString());
 	});
 
 	dumpProcess.on('close', function() {
-		log.debug('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Token: "' + req.token + '". Dump command closed.');
+		log.debug('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Exchange: "' + that.options.exchange + '", Token: "' + req.token + '". Dump command closed.');
 		res.end();
 		clearTimeout(req.serverTimeout);
 		req.server.close();
 	});
 
 	dumpProcess.on('error', function(err) {
-		log.warn('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Token: "' + req.token + '". Non-0 exit code from dumpProcess. err: ' + err.message);
+		log.warn('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Exchange: "' + that.options.exchange + '", Token: "' + req.token + '". Non-0 exit code from dumpProcess. err: ' + err.message);
 		res.writeHead(500, { 'Content-Type':	'text/plain' });
 		res.end('Process error: ' + err.message);
 	});
