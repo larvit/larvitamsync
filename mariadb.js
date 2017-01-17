@@ -38,8 +38,14 @@ function sync(options, cb) {
 		const	mysqlOptions	= [],
 			f	= fs.openSync(tmpFileName, 'r');
 
-		mysqlOptions.push('-h');
-		mysqlOptions.push(db.conf.host);
+		if (db.conf.host) {
+			mysqlOptions.push('-h');
+			mysqlOptions.push(db.conf.host);
+		} else if (db.conf.socketPath) {
+			mysqlOptions.push('-S');
+			mysqlOptions.push(db.conf.socketPath);
+		}
+
 		mysqlOptions.push('-u');
 		mysqlOptions.push(db.conf.user);
 
