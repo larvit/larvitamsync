@@ -9,24 +9,24 @@ function SyncClient(options, cb) {
 	const	that	= this;
 
 	that.options	= options;
-	that.intercom	= lUtils.instances.intercom;
+	that.extIntercom	= lUtils.instances.intercom;
 	that.responseReceived	= false;
 
 	if (that.options.intercom) {
-		that.intercom = that.options.intercom;
+		that.extIntercom = that.options.intercom;
 	} else {
-		that.intercom	= lUtils.instances.intercom;
+		that.extIntercom	= lUtils.instances.intercom;
 	}
 
 	// We are strictly in need of the intercom!
-	if ( ! (that.intercom instanceof Intercom)) {
+	if ( ! (that.extIntercom instanceof Intercom)) {
 		const	err	= new Error('larvitutils.instances.intercom is not an instance of Intercom!');
 		log.error('larvitamsync: syncClient.js - ' + err.message);
 		throw err;
 	}
 
 	// Reconnect so we have a fresh instance of intercom so we do not interfer with others
-	that.intercom = new Intercom(that.intercom.conStr);
+	that.intercom = new Intercom(that.extIntercom.conStr);
 	that.intercom.on('ready', function(err) {
 		if (err) { cb(err); return; }
 
