@@ -65,7 +65,7 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 	});
 
 	dumpProcess.stderr.on('data', function(data) {
-		log.error('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Exchange: "' + that.options.exchange + '", Token: "' + req.token + '". Error from dump command: ' + data.toString());
+		log.warn('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Exchange: "' + that.options.exchange + '", Token: "' + req.token + '". Error from dump command: ' + data.toString());
 	});
 
 	dumpProcess.on('close', function() {
