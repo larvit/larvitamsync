@@ -40,7 +40,7 @@ function SyncClient(options, cb) {
 		}, function(err) {
 			if (err) { cb(err); return; }
 
-			that.intercom.send({'action': 'reqestDump'}, {'exchange': that.options.exchange}, function(err) {
+			that.intercom.send({'action': 'reqestDump', 'noOfRequests': that.options.noOfRequests || 1 }, {'exchange': that.options.exchange}, function(err) {
 				if (err) { cb(err); return; }
 			});
 		});
@@ -48,10 +48,7 @@ function SyncClient(options, cb) {
 }
 
 SyncClient.prototype.handleMsg = function(message, ack, cb) {
-	const	reqOptions	= {},
-		that	= this;
-
-	let	req;
+	const	that	= this;
 
 	log.debug('larvitamsync: syncClient.js - SyncClient.handleMsg() - Incoming message: "' + JSON.stringify(message) + '"');
 
@@ -80,10 +77,25 @@ SyncClient.prototype.handleMsg = function(message, ack, cb) {
 		message.endpoints[0].protocol = 'http';
 	}
 
+	if (Array.isArray(cb)) {
+		for(let i = 0; i < message.endpoints[0].token.length; i ++) {
+			that.makeHttpRequest(message.endpoints[0].token[i], cb[i]);
+		}
+	} else {
+		that.makeHttpRequest(message.endpoints[0].token[0], cb);
+	}
+
+	that.intercom.close();
+};
+
+SyncClient.prototype.makeHttpRequest = function (token, cb) {
+
+	const reqOptions = {};
+
 	reqOptions.protocol	= message.endpoints[0].protocol + ':';
 	reqOptions.host	= message.endpoints[0].host;
 	reqOptions.port	= message.endpoints[0].port;
-	reqOptions.headers	= {'token': message.endpoints[0].token};
+	reqOptions.headers	= {'token': token};
 
 	if (that.options.requestOptions !== undefined) {
 		for (const key of Object.keys(that.options.requestOptions)) {
@@ -93,7 +105,7 @@ SyncClient.prototype.handleMsg = function(message, ack, cb) {
 
 	log.verbose('larvitamsync: syncClient.js - SyncClient.handleMsg() - Sending request: "' + JSON.stringify(reqOptions) + '"');
 
-	req = http.request(reqOptions, function(res) {
+	let req = http.request(reqOptions, function(res) {
 		if (res.statusCode !== 200) {
 			const	err	= new Error('Non 200 statusCode: ' + res.statusCode);
 			log.error('larvitamsync: syncClient.js - SyncClient.handleMsg() - Request failed: ' + err.message);
@@ -111,8 +123,6 @@ SyncClient.prototype.handleMsg = function(message, ack, cb) {
 		log.error('larvitamsync: syncClient.js - SyncClient.handleMsg() - Request failed: ' + err.message);
 		cb(err);
 	});
-
-	that.intercom.close();
 };
 
 exports = module.exports = SyncClient;

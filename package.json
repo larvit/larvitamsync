@@ -31,6 +31,7 @@
     "larvitdb": "^1.2.5",
     "larvitutils": "^1.1.0",
     "uuid": "^3.0.1",
-    "winston": "^2.3.0"
+    "winston": "^2.3.0",
+	"elasticdump": "^3.1.0"
   }
 }
