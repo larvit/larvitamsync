@@ -172,7 +172,7 @@ describe('Basics', function() {
 
 		// Send the request to the queue
 		tasks.push(function(cb) {
-			intercom1.send({'action': 'reqestDump'}, {'exchange': exchangeName}, cb);
+			intercom1.send({'action': 'reqestDump', 'noOfTokens': 1}, {'exchange': exchangeName}, cb);
 		});
 
 		async.series(tasks, function(err) {
@@ -404,6 +404,13 @@ describe('Custom http receiver', function() {
 			if (err) throw err;
 			done();
 		});
+	});
+});
+
+describe('multiple requests with custom callbacks', function () {
+	it('get it done', function (done) {
+
+		done();
 	});
 });
 

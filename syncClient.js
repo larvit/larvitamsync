@@ -18,6 +18,10 @@ function SyncClient(options, cb) {
 		that.extIntercom	= lUtils.instances.intercom;
 	}
 
+	if (that.options.noOfTokens === undefined) {
+		that.options.noOfTokens = 1;
+	}
+
 	// We are strictly in need of the intercom!
 	if ( ! (that.extIntercom instanceof Intercom)) {
 		const	err	= new Error('larvitutils.instances.intercom is not an instance of Intercom!');
@@ -40,7 +44,7 @@ function SyncClient(options, cb) {
 		}, function(err) {
 			if (err) { cb(err); return; }
 
-			that.intercom.send({'action': 'reqestDump'}, {'exchange': that.options.exchange}, function(err) {
+			that.intercom.send({'action': 'reqestDump', 'noOfTokens': that.options.noOfTokens }, {'exchange': that.options.exchange}, function(err) {
 				if (err) { cb(err); return; }
 			});
 		});

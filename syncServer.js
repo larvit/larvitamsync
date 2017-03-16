@@ -28,23 +28,33 @@ function SyncServer(options, cb) {
 
 	log.info('larvitamsync: syncServer.js - SyncServer started on exchange: "' + that.options.exchange + '"');
 
+	if (that.options.dataDumpCmd !== undefined && ! Array.isArray(that.options.dataDumpCmd)) {
+		that.options.dataDumpCmd = [that.options.dataDumpCmd];
+	}
+
 	// Subscribe to dump requests
 	that.listenForRequests(cb);
 }
 
 SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 	const	that	= this;
+		
+	let	dumpProcess, cmd;
 
-	let	dumpProcess;
+	if (that.options.dataDumpCmd !== undefined && Array.isArray(that.options.dataDumpCmd)) {
+		cmd = that.options.dataDumpCmd.shift();
+	} else {
+		cmd = that.options.dataDumpCmd;
+	}
 
-	if (req.headers.token !== req.token) {
+	if (req.token.indexOf(req.headers.token) === - 1) {
 		log.info('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Exchange: "' + that.options.exchange + '", Token: "' + req.token + '". Incoming message. Invalid token detected: "' + req.headers.token + '"');
 		res.writeHead(401, {'Content-Type': 'text/plain; charset=utf-8'});
 		res.end('Unauthorized');
 		return;
 	}
 
-	if ( ! that.options.dataDumpCmd || ! that.options.dataDumpCmd.command) {
+	if ( ! cmd || ! cmd.command) {
 		const	err	= new Error('options.dataDumpCmd.command is a required option!');
 		log.error('larvitamsync: syncServer.js - handleHttpReq() - Invalid options: ' + err.message);
 		res.writeHead(500, { 'Content-Type':	'text/plain' });
@@ -54,7 +64,7 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 
 	log.verbose('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Exchange: "' + that.options.exchange + '", Token: "' + req.token + '". Incoming message with valid token.');
 
-	dumpProcess	= spawn(that.options.dataDumpCmd.command, that.options.dataDumpCmd.args, that.options.dataDumpCmd.options);
+	dumpProcess	= spawn(cmd.command, cmd.args, cmd.options);
 
 	if ( ! res.getHeader('Content-Type'))	{ res.setHeader('Content-Type',	'Application/Octet-stream');	}
 	if ( ! res.getHeader('Connection'))	{ res.setHeader('Connection',	'Transfer-Encoding');	}
@@ -83,13 +93,17 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 };
 
 SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
-	const	token	= uuidLib.v4(),
+	const	token	= [],
 		that	= this;
 
 	let	serverTimeout,
 		server;
 
 	ack();
+
+	for (let i = 0; i < message.noOfTokens; i ++) {
+		token.push(uuidLib.v4());
+	}
 
 	log.debug('larvitamsync: syncServer.js - SyncServer.handleIncMsg() - Token: "' + token + '". Incoming message: ' + JSON.stringify(message));
 
