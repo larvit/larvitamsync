@@ -28,10 +28,6 @@ function SyncServer(options, cb) {
 
 	log.info('larvitamsync: syncServer.js - SyncServer started on exchange: "' + that.options.exchange + '"');
 
-	if (that.options.dataDumpCmd !== undefined && ! Array.isArray(that.options.dataDumpCmd)) {
-		that.options.dataDumpCmd = [that.options.dataDumpCmd];
-	}
-
 	// Subscribe to dump requests
 	that.listenForRequests(cb);
 }
@@ -53,6 +49,9 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 		res.end('Unauthorized');
 		return;
 	}
+
+	// remove used token
+	req.token.splice(req.token.indexOf(req.headers.token), 1);
 
 	if ( ! cmd || ! cmd.command) {
 		const	err	= new Error('options.dataDumpCmd.command is a required option!');
@@ -82,7 +81,10 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 		log.debug('larvitamsync: syncServer.js - SyncServer.handleHttpReq() - Exchange: "' + that.options.exchange + '", Token: "' + req.token + '". Dump command closed.');
 		res.end();
 		clearTimeout(req.serverTimeout);
-		req.server.close();
+
+		if (req.token.length === 0) {
+			req.server.close();
+		}
 	});
 
 	dumpProcess.on('error', function(err) {
@@ -94,14 +96,15 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 
 SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 	const	token	= [],
-		that	= this;
+		that	= this,
+		noOfTokens = message.noOfTokens === undefined ? 1 : message.noOfTokens;
 
 	let	serverTimeout,
 		server;
 
 	ack();
 
-	for (let i = 0; i < message.noOfTokens; i ++) {
+	for (let i = 0; i < noOfTokens; i ++) {
 		token.push(uuidLib.v4());
 	}
 

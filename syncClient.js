@@ -71,7 +71,10 @@ SyncClient.prototype.handleMsg = function(message, ack, cb) {
 		return;
 	}
 
-	that.responseReceived = true; // Ignore future messages on this subscription
+
+	if ((Array.isArray(message.endpoints[0].token) && message.endpoints[0].token.length == 0) || ! Array.isArray(message.endpoints[0].token)) {
+		that.responseReceived = true; // Ignore future messages on this subscription
+	}
 
 	if ( ! message.endpoints) {
 		const	err	= new Error('message.endpoints does not contain network endpoints to connecto to');
@@ -87,7 +90,7 @@ SyncClient.prototype.handleMsg = function(message, ack, cb) {
 	reqOptions.protocol	= message.endpoints[0].protocol + ':';
 	reqOptions.host	= message.endpoints[0].host;
 	reqOptions.port	= message.endpoints[0].port;
-	reqOptions.headers	= {'token': message.endpoints[0].token};
+	reqOptions.headers	= {'token': Array.isArray(message.endpoints[0].token) ? message.endpoints[0].token.shift() : message.endpoints[0].token};
 
 	if (that.options.requestOptions !== undefined) {
 		for (const key of Object.keys(that.options.requestOptions)) {
