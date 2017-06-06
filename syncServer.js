@@ -10,8 +10,9 @@ const	topLogPrefix	= 'larvitamsync: syncServer.js: ',
 	nics	= os.networkInterfaces();
 
 function SyncServer(options, cb) {
-	const	logPrefix	= topLogPrefix + 'SyncServer() - Exchange: "' + that.options.exchange + '" - Token: "' + req.token + '" - ',
-		that	= this;
+	const	that	= this;
+
+	let	logPrefix	= topLogPrefix + 'SyncServer() - ';
 
 	that.options	= options;
 
@@ -20,6 +21,8 @@ function SyncServer(options, cb) {
 	} else {
 		that.intercom	= lUtils.instances.intercom;
 	}
+
+	logPrefix += 'Exchange: "' + this.options.exchange + '" - ';
 
 	// We are strictly in need of the intercom!
 	if ( ! (that.intercom instanceof require('larvitamintercom'))) {
@@ -35,7 +38,7 @@ function SyncServer(options, cb) {
 }
 
 SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
-	const	logPrefix	= topLogPrefix + 'SyncServer.prototype.handleHttpReq() - Exchange: "' + that.options.exchange + '" - Token: "' + req.token + '" - ',
+	const	logPrefix	= topLogPrefix + 'SyncServer.prototype.handleHttpReq() - Exchange: "' + this.options.exchange + '" - Token: "' + req.token + '" - ',
 		that	= this;
 
 	let	dumpProcess;
@@ -86,8 +89,8 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 };
 
 SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
-	const	logPrefix = topLogPrefix + 'SyncServer.prototype.handleIncMsg() - Exchange: "' + that.options.exchange + '" - Token: "' + token + '" - ',
-		token	= uuidLib.v4(),
+	const	token	= uuidLib.v4(),
+		logPrefix	= topLogPrefix + 'SyncServer.prototype.handleIncMsg() - Exchange: "' + this.options.exchange + '" - Token: "' + token + '" - ',
 		that	= this;
 
 	let	serverTimeout,
