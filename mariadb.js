@@ -1,6 +1,7 @@
 'use strict';
 
-const	SyncClient	= require(__dirname + '/syncClient.js'),
+const	topLogPrefix	= 'larvitamsync: mariadb.js: ',
+	SyncClient	= require(__dirname + '/syncClient.js'),
 	uuidLib	= require('uuid'),
 	spawn	= require('child_process').spawn,
 	async	= require('async'),
@@ -11,21 +12,22 @@ const	SyncClient	= require(__dirname + '/syncClient.js'),
 
 function sync(options, cb) {
 	const	tmpFileName	= os.tmpdir() + '/tmp_' + uuidLib.v4() + '.sql',
+		logPrefix	= topLogPrefix + 'sync() - ',
 		tasks	= [],
 		that	= this;
 
 	that.options = options;
 
 	// Write tmp SQL file to disk
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	tmpFile	= fs.createWriteStream(tmpFileName);
 
-		new SyncClient(options, function(err, res) {
-			if (err) { cb(err); return; }
+		new SyncClient(options, function (err, res) {
+			if (err) return cb(err);
 
 			res.pipe(tmpFile);
 
-			res.on('error', function(err) {
+			res.on('error', function (err) {
 				throw err; // Is logged upstream, but should stop app execution
 			});
 
@@ -34,7 +36,7 @@ function sync(options, cb) {
 	});
 
 	// Read SQL file to database
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	mysqlOptions	= [],
 			f	= fs.openSync(tmpFileName, 'r');
 
@@ -59,17 +61,17 @@ function sync(options, cb) {
 
 		shMysql	= spawn('mysql', mysqlOptions, {'stdio': [f, 'pipe', process.stderr]});
 
-		shMysql.on('close', function() {
-			log.info('larvitamsync: ./mariadb.js - sync() - Database synced on exchange: "' + that.options.exchange + '"');
+		shMysql.on('close', function () {
+			log.info(logPrefix + 'Database synced on exchange: "' + that.options.exchange + '"');
 			cb();
 		});
 	});
 
 	// Remote tmp SQL file
-	tasks.push(function(cb) {
-		fs.unlink(tmpFileName, function(err) {
+	tasks.push(function (cb) {
+		fs.unlink(tmpFileName, function (err) {
 			if (err) {
-				log.warn('larvitamsync: ./mariadb.js - sync() - Could not remove ' + tmpFilename + ' err: ' + err.message);
+				log.warn(logPrefix + 'Could not remove ' + tmpFilename + ' err: ' + err.message);
 			}
 			cb(err);
 		});

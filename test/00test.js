@@ -26,12 +26,12 @@ log.remove(log.transports.Console);
 	'json':	false
 });/**/
 
-before(function(done) {
+before(function (done) {
 	this.timeout(10000);
 	const	tasks	= [];
 
 	// Run DB Setup
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		let confFile;
 
 		if (process.env.DBCONFFILE === undefined) {
@@ -43,12 +43,12 @@ before(function(done) {
 		log.verbose('DB config file: "' + confFile + '"');
 
 		// First look for absolute path
-		fs.stat(confFile, function(err) {
+		fs.stat(confFile, function (err) {
 			if (err) {
 
 				// Then look for this string in the config folder
 				confFile = __dirname + '/../config/' + confFile;
-				fs.stat(confFile, function(err) {
+				fs.stat(confFile, function (err) {
 					if (err) throw err;
 					log.verbose('DB config: ' + JSON.stringify(require(confFile)));
 					db.setup(require(confFile), cb);
@@ -63,8 +63,8 @@ before(function(done) {
 	});
 
 	// Check for empty db
-	tasks.push(function(cb) {
-		db.query('SHOW TABLES', function(err, rows) {
+	tasks.push(function (cb) {
+		db.query('SHOW TABLES', function (err, rows) {
 			if (err) throw err;
 
 			if (rows.length) {
@@ -76,7 +76,7 @@ before(function(done) {
 	});
 
 	// Get intercom config file
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		if (process.env.INTCONFFILE === undefined) {
 			intercomConfigFile = __dirname + '/../config/amqp_test.json';
 		} else {
@@ -86,12 +86,12 @@ before(function(done) {
 		log.verbose('Intercom config file: "' + intercomConfigFile + '"');
 
 		// First look for absolute path
-		fs.stat(intercomConfigFile, function(err) {
+		fs.stat(intercomConfigFile, function (err) {
 			if (err) {
 
 				// Then look for this string in the config folder
 				intercomConfigFile = __dirname + '/../config/' + intercomConfigFile;
-				fs.stat(intercomConfigFile, function(err) {
+				fs.stat(intercomConfigFile, function (err) {
 					if (err) throw err;
 					log.verbose('Intercom config: ' + JSON.stringify(require(intercomConfigFile)));
 					lUtils.instances.intercom = new Intercom(require(intercomConfigFile));
@@ -110,8 +110,8 @@ before(function(done) {
 	async.series(tasks, done);
 });
 
-describe('Basics', function() {
-	it('server', function(done) {
+describe('Basics', function () {
+	it('server', function (done) {
 		const	exchangeName	= 'test_dataDump_server',
 			intercom1	= new Intercom(require(intercomConfigFile)),
 			intercom2	= new Intercom(require(intercomConfigFile)),
@@ -144,7 +144,7 @@ describe('Basics', function() {
 			reqOptions.uri	+= ':' + message.endpoints[0].port;
 			reqOptions.headers	= {'token': message.endpoints[0].token};
 
-			request(reqOptions, function(err, res, body) {
+			request(reqOptions, function (err, res, body) {
 				if (err) throw err;
 
 				assert.deepEqual(_.trim(body), _.trim(sql));
@@ -153,7 +153,7 @@ describe('Basics', function() {
 		}
 
 		// Start server
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			options.dataDumpCmd = {
 				'command':	'echo',
 				'args':	[sql]
@@ -166,21 +166,21 @@ describe('Basics', function() {
 		});
 
 		// Subscribe to happenings on the queue on intercom1
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			intercom1.subscribe({'exchange': exchangeName}, handleMsg, cb);
 		});
 
 		// Send the request to the queue
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			intercom1.send({'action': 'reqestDump', 'noOfTokens': 1}, {'exchange': exchangeName}, cb);
 		});
 
-		async.series(tasks, function(err) {
+		async.series(tasks, function (err) {
 			if (err) throw err;
 		});
 	});
 
-	it('client', function(done) {
+	it('client', function (done) {
 		const	exchangeName	= 'test_dataDump_client',
 			msgContent	= 'wlüpp!',
 			intercom1	= new Intercom(require(intercomConfigFile)),
@@ -199,18 +199,18 @@ describe('Basics', function() {
 
 			let	server;
 
-			server = http.createServer(function(req, res) {
+			server = http.createServer(function (req, res) {
 				assert.deepEqual(req.headers.token, token);
 				res.writeHead(200, {'Content-Type': 'plain/text'});
 				res.end(msgContent);
 				server.close();
 			});
 			server.listen(0);
-			server.on('error', function(err) {
+			server.on('error', function (err) {
 				throw err;
 			});
 
-			server.on('listening', function() {
+			server.on('listening', function () {
 				const	servedPort	= server.address().port,
 					message	= {'action': 'dumpResponse', 'endpoints': []};
 
@@ -234,24 +234,24 @@ describe('Basics', function() {
 		}
 
 		// Listen to the queue for dump requests
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			intercom1.subscribe({'exchange': exchangeName}, handleIncMsg, cb);
 		});
 
 		// Start client
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const	options	= {'exchange': exchangeName, 'intercom': intercom2};
 
-			new amsync.SyncClient(options, function(err, res) {
+			new amsync.SyncClient(options, function (err, res) {
 				let	syncData	= Buffer.from('');
 
 				if (err) { cb(err); return; }
 
-				res.on('data', function(chunk) {
+				res.on('data', function (chunk) {
 					syncData	=	Buffer.concat([syncData, chunk], syncData.length + chunk.length);
 				});
 
-				res.on('end', function() {
+				res.on('end', function () {
 					assert.deepEqual(syncData.toString(), msgContent);
 					done();
 				});
@@ -260,14 +260,14 @@ describe('Basics', function() {
 			});
 		});
 
-		async.series(tasks, function(err) {
+		async.series(tasks, function (err) {
 			if (err) throw err;
 		});
 	});
 });
 
-describe('Database', function() {
-	it('should sync MariaDB/MySQL stuff', function(done) {
+describe('Database', function () {
+	it('should sync MariaDB/MySQL stuff', function (done) {
 		const	exchangeName	= 'test_dataDump_mariadb',
 			intercom1	= new Intercom(require(intercomConfigFile)),
 			intercom2	= new Intercom(require(intercomConfigFile)),
@@ -276,7 +276,7 @@ describe('Database', function() {
 		this.slow(500);
 
 		// Start server
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const	options	= {'exchange': exchangeName};
 
 			options.dataDumpCmd = {
@@ -291,15 +291,15 @@ describe('Database', function() {
 		});
 
 		// Write sync to db
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const	options	= {'exchange': exchangeName, 'intercom': intercom2};
 
 			amsync.mariadb(options, cb);
 		});
 
 		// Check database
-		tasks.push(function(cb) {
-			db.query('SELECT * FROM bosse', function(err, rows) {
+		tasks.push(function (cb) {
+			db.query('SELECT * FROM bosse', function (err, rows) {
 				if (err) throw err;
 
 				assert.deepEqual(rows.length,	1);
@@ -309,7 +309,7 @@ describe('Database', function() {
 			});
 		});
 
-		async.series(tasks, function(err) {
+		async.series(tasks, function (err) {
 			if (err) throw err;
 
 			done();
@@ -317,8 +317,8 @@ describe('Database', function() {
 	});
 });
 
-describe('Custom http receiver', function() {
-	it('should read path', function(done) {
+describe('Custom http receiver', function () {
+	it('should read path', function (done) {
 		const	exchangeName	= 'test_dataDump_custom',
 			intercom1	= new Intercom(require(intercomConfigFile)),
 			intercom2	= new Intercom(require(intercomConfigFile)),
@@ -326,17 +326,17 @@ describe('Custom http receiver', function() {
 
 		this.slow(500);
 
-		intercom1.on('ready', function(err) {
+		intercom1.on('ready', function (err) {
 			if (err) throw err;
 			intercom1.ready = true;
 		});
-		intercom2.on('ready', function(err) {
+		intercom2.on('ready', function (err) {
 			if (err) throw err;
 			intercom2.ready = true;
 		});
 
 		// Wait for the intercoms to come online
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			function checkIfReady() {
 				if (intercom1.ready === true && intercom2.ready === true) {
 					cb();
@@ -348,7 +348,7 @@ describe('Custom http receiver', function() {
 		});
 
 		// Start server
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const	options	= {'exchange': exchangeName};
 
 			let	syncServer;
@@ -357,7 +357,7 @@ describe('Custom http receiver', function() {
 
 			syncServer.handleHttpReq_original = syncServer.handleHttpReq;
 
-			syncServer.handleHttpReq = function(req, res) {
+			syncServer.handleHttpReq = function (req, res) {
 
 				// Set custom content type
 				res.setHeader('Content-Type', 'text/plain');
@@ -375,32 +375,32 @@ describe('Custom http receiver', function() {
 		});
 
 		// Start the client
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const	options	= {'exchange': exchangeName};
 
 			options.requestOptions	= {'path': '/foobar'};
 
-			new amsync.SyncClient(options, function(err, res) {
+			new amsync.SyncClient(options, function (err, res) {
 				let	syncData	= Buffer.from('');
 
 				if (err) throw err;
 
-				res.on('data', function(chunk) {
+				res.on('data', function (chunk) {
 					syncData	=	Buffer.concat([syncData, chunk], syncData.length + chunk.length);
 				});
 
-				res.on('end', function() {
+				res.on('end', function () {
 					assert.deepEqual(syncData.toString(), options.requestOptions.path);
 					cb();
 				});
 
-				res.on('error', function(err) {
+				res.on('error', function (err) {
 					throw err;
 				});
 			});
 		});
 
-		async.series(tasks, function(err) {
+		async.series(tasks, function (err) {
 			if (err) throw err;
 			done();
 		});
@@ -419,18 +419,18 @@ describe('multiple requests with custom callbacks', function () {
 
 		this.slow(500);
 
-		intercom1.on('ready', function(err) {
+		intercom1.on('ready', function (err) {
 			if (err) throw err;
 			intercom1.ready = true;
 		});
 
-		intercom2.on('ready', function(err) {
+		intercom2.on('ready', function (err) {
 			if (err) throw err;
 			intercom2.ready = true;
 		});
 
 		// Wait for the intercoms to come online
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			function checkIfReady() {
 				if (intercom1.ready === true && intercom2.ready === true) {
 					cb();
@@ -442,7 +442,7 @@ describe('multiple requests with custom callbacks', function () {
 		});
 
 		// Start server
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 
 			const	options	= {'exchange': exchangeName};
 
@@ -452,7 +452,7 @@ describe('multiple requests with custom callbacks', function () {
 
 			syncServer.handleHttpReq_original = syncServer.handleHttpReq;
 
-			syncServer.handleHttpReq = function(req, res) {
+			syncServer.handleHttpReq = function (req, res) {
 
 				// Set custom content type
 				res.setHeader('Content-Type', 'text/plain');
@@ -472,8 +472,8 @@ describe('multiple requests with custom callbacks', function () {
 		});
 
 		// Start the client
-		tasks.push(function(cbx) {
-			
+		tasks.push(function (cbx) {
+
 			const	options	= {'exchange': exchangeName, 'noOfTokens': 2};
 
 			let syncClient = new amsync.SyncClient(options, function (err) {
@@ -485,17 +485,17 @@ describe('multiple requests with custom callbacks', function () {
 			syncClient.handleMsg = function (message, ack, cb) {
 
 				options.requestOptions	= {'path': '/1'};
-				syncClient.handleMsg_original(message, ack, function(err, res) {
+				syncClient.handleMsg_original(message, ack, function (err, res) {
 
 					let	syncData	= Buffer.from('');
 
 					if (err) throw err;
 
-					res.on('data', function(chunk) {
+					res.on('data', function (chunk) {
 						syncData	=	Buffer.concat([syncData, chunk], syncData.length + chunk.length);
 					});
 
-					res.on('end', function() {
+					res.on('end', function () {
 						assert.deepEqual(syncData.toString(), '1');
 
 						syncData = Buffer.from('');
@@ -504,11 +504,11 @@ describe('multiple requests with custom callbacks', function () {
 
 						options.requestOptions = {'path': '/2'};
 
-						syncClient.handleMsg_original(message, function () {}, function(err, res) {
+						syncClient.handleMsg_original(message, function () {}, function (err, res) {
 
 							if (err) throw err;
 
-							res.on('data', function(chunk) {
+							res.on('data', function (chunk) {
 								syncData	=	Buffer.concat([syncData, chunk], syncData.length + chunk.length);
 							});
 
@@ -517,7 +517,7 @@ describe('multiple requests with custom callbacks', function () {
 								cb();
 							});
 
-							res.on('error', function(err) {
+							res.on('error', function (err) {
 								throw err;
 							});
 						});
@@ -525,14 +525,14 @@ describe('multiple requests with custom callbacks', function () {
 						// ----------------------------------------
 					});
 
-					res.on('error', function(err) {
+					res.on('error', function (err) {
 						throw err;
 					});
 				});
 			};
 		});
 
-		async.series(tasks, function(err) {
+		async.series(tasks, function (err) {
 			if (err) throw err;
 			done();
 		});
@@ -540,6 +540,6 @@ describe('multiple requests with custom callbacks', function () {
 	});
 });
 
-after(function(done) {
+after(function (done) {
 	db.removeAllTables(done);
 });
