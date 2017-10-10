@@ -43,7 +43,7 @@ function SyncClient(options, cb) {
 		}, function (err) {
 			if (err) return cb(err);
 
-			that.intercom.send({'action': 'reqestDump'}, {'exchange': that.options.exchange}, function (err) {
+			that.intercom.send({'action': 'requestDump'}, {'exchange': that.options.exchange}, function (err) {
 				if (err) return cb(err);
 			});
 		});

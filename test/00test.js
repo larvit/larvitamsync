@@ -172,7 +172,7 @@ describe('Basics', function () {
 
 		// Send the request to the queue
 		tasks.push(function (cb) {
-			intercom1.send({'action': 'reqestDump', 'noOfTokens': 1}, {'exchange': exchangeName}, cb);
+			intercom1.send({'action': 'requestDump', 'noOfTokens': 1}, {'exchange': exchangeName}, cb);
 		});
 
 		async.series(tasks, function (err) {
@@ -193,7 +193,7 @@ describe('Basics', function () {
 		function handleIncMsg(message, ack) {
 			ack();
 
-			if (message.action !== 'reqestDump') {
+			if (message.action !== 'requestDump') {
 				return;
 			}
 

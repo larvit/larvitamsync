@@ -100,7 +100,7 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 
 	log.debug(logPrefix + 'Incoming message: ' + JSON.stringify(message));
 
-	if (message.action !== 'reqestDump') {
+	if (message.action !== 'requestDump') {
 		return;
 	}
 
