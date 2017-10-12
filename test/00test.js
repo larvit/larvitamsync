@@ -4,18 +4,17 @@ const	Intercom	= require('larvitamintercom'),
 	request	= require('request'),
 	assert	= require('assert'),
 	amsync	= require(__dirname + '/../index.js'),
-	lUtils	= require('larvitutils'),
 	async	= require('async'),
 	http	= require('http'),
+	nics	= require('os').networkInterfaces(),
 	log	= require('winston'),
 	sql	= 'CREATE TABLE `bosse` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY, `name` varchar(255) NOT NULL); INSERT INTO bosse (name) VALUES(\'duh\');',
-	os	= require('os'),
-	nics	= os.networkInterfaces(),
 	db	= require('larvitdb'),
 	fs	= require('fs'),
 	_	= require('lodash');
 
-let	intercomConfigFile;
+let	intercomConfigFile,
+	intercom;
 
 // Set up winston
 log.remove(log.transports.Console);
@@ -75,7 +74,7 @@ before(function (done) {
 		});
 	});
 
-	// Get intercom config file
+	// Get intercom config file and start intercom
 	tasks.push(function (cb) {
 		if (process.env.INTCONFFILE === undefined) {
 			intercomConfigFile = __dirname + '/../config/amqp_test.json';
@@ -94,16 +93,16 @@ before(function (done) {
 				fs.stat(intercomConfigFile, function (err) {
 					if (err) throw err;
 					log.verbose('Intercom config: ' + JSON.stringify(require(intercomConfigFile)));
-					lUtils.instances.intercom = new Intercom(require(intercomConfigFile));
-					lUtils.instances.intercom.on('ready', cb);
+					intercom	= new Intercom(require(intercomConfigFile));
+					intercom.on('ready', cb);
 				});
 
 				return;
 			}
 
 			log.verbose('Intercom config: ' + JSON.stringify(require(intercomConfigFile)));
-			lUtils.instances.intercom = new Intercom(require(intercomConfigFile));
-			lUtils.instances.intercom.on('ready', cb);
+			intercom = new Intercom(require(intercomConfigFile));
+			intercom.on('ready', cb);
 		});
 	});
 
@@ -326,30 +325,13 @@ describe('Custom http receiver', function () {
 
 		this.slow(500);
 
-		intercom1.on('ready', function (err) {
-			if (err) throw err;
-			intercom1.ready = true;
-		});
-		intercom2.on('ready', function (err) {
-			if (err) throw err;
-			intercom2.ready = true;
-		});
-
 		// Wait for the intercoms to come online
-		tasks.push(function (cb) {
-			function checkIfReady() {
-				if (intercom1.ready === true && intercom2.ready === true) {
-					cb();
-				} else {
-					setTimeout(checkIfReady, 10);
-				}
-			}
-			checkIfReady();
-		});
+		tasks.push(function (cb) {intercom1.ready(cb);});
+		tasks.push(function (cb) {intercom2.ready(cb);});
 
 		// Start server
 		tasks.push(function (cb) {
-			const	options	= {'exchange': exchangeName};
+			const	options	= {'exchange': exchangeName, 'intercom': intercom1};
 
 			let	syncServer;
 
@@ -376,7 +358,7 @@ describe('Custom http receiver', function () {
 
 		// Start the client
 		tasks.push(function (cb) {
-			const	options	= {'exchange': exchangeName};
+			const	options	= {'exchange': exchangeName, 'intercom': intercom2};
 
 			options.requestOptions	= {'path': '/foobar'};
 

@@ -2,7 +2,6 @@
 
 const	topLogPrefix	= 'larvitamsync: syncServer.js: ',
 	uuidLib	= require('uuid'),
-	lUtils	= require('larvitutils'),
 	spawn	= require('child_process').spawn,
 	http	= require('http'),
 	log	= require('winston'),
@@ -15,18 +14,13 @@ function SyncServer(options, cb) {
 	let	logPrefix	= topLogPrefix + 'SyncServer() - ';
 
 	that.options	= options;
-
-	if (that.options.intercom) {
-		that.intercom = that.options.intercom;
-	} else {
-		that.intercom	= lUtils.instances.intercom;
-	}
+	that.intercom	= that.options.intercom;
 
 	logPrefix += 'Exchange: "' + this.options.exchange + '" - ';
 
 	// We are strictly in need of the intercom!
 	if ( ! (that.intercom instanceof require('larvitamintercom'))) {
-		const	err	= new Error('larvitutils.instances.intercom is not an instance of Intercom!');
+		const	err	= new Error('options.intercom is not an instance of Intercom!');
 		log.error(logPrefix + err.message);
 		throw err;
 	}

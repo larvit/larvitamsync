@@ -2,7 +2,6 @@
 
 const	topLogPrefix	= 'larvitamsync: syncClient.js: ',
 	Intercom	= require('larvitamintercom'),
-	lUtils	= require('larvitutils'),
 	http	= require('http'),
 	log	= require('winston');
 
@@ -11,18 +10,13 @@ function SyncClient(options, cb) {
 		that	= this;
 
 	that.options	= options;
-	that.extIntercom	= lUtils.instances.intercom;
 	that.responseReceived	= false;
 
-	if (that.options.intercom) {
-		that.extIntercom = that.options.intercom;
-	} else {
-		that.extIntercom	= lUtils.instances.intercom;
-	}
+	that.extIntercom = that.options.intercom;
 
 	// We are strictly in need of the intercom!
 	if ( ! (that.extIntercom instanceof Intercom)) {
-		const	err	= new Error('larvitutils.instances.intercom is not an instance of Intercom!');
+		const	err	= new Error('options.intercom is not an instance of Intercom!');
 		log.error(logPrefix + err.message);
 		throw err;
 	}
