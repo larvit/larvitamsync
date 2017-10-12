@@ -8,13 +8,14 @@ Sync data between minions
 
 ### Server (data master)
 
-For this to work, larvitamintercom must be configured and up and running!
-
 #### Simple command
 
 ```javascript
-const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
+const	Intercom	= require('larvitamintercom'),
+	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
 	amsync	= require('larvitamsync');
+
+options.intercom	= new Intercom('AMQP connection string');
 
 // The stdout from this command will be piped to the data slave
 // This will be be the input for the
@@ -33,7 +34,6 @@ options.dataDumpCmd = {
 
 new amsync.SyncServer(options, function(err) {
 	if (err) throw err;
-
 	console.log('Server active');
 });
 ```
@@ -43,10 +43,13 @@ new amsync.SyncServer(options, function(err) {
 On each data dump request there is a http request and this can be handled manually
 
 ```javascript
-const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
+const	Intercom	= require('larvitamintercom'),
+	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
 	amsync	= require('larvitamsync');
 
 let	syncServer;
+
+options.intercom	= new Intercom('AMQP connection string');
 
 syncServer = new amsync.SyncServer(options, function(err) {
 	if (err) throw err;
@@ -78,9 +81,11 @@ syncServer.handleHttpReq = function(req, res) {
 For this to work, larvitamintercom must be configured and up and running!
 
 ```javascript
-const	options	= {},
+const	Intercom	= require('larvitamintercom'),
+	options	= {},
 	amsync	= require('larvitamsync');
 
+options.intercom	= new Intercom('AMQP connection string');
 options.exchange	= 'test_dataDump';	// RabbitMQ exchange, must be unique on the queue
 options.requestOptions	= {'path': '/foobar'};	// Optional extra options to
 		// https://www.npmjs.com/package/request that
@@ -113,12 +118,14 @@ new amsync.SyncClient(options, function(err, res) {
 For this to work, both larvitamintercom and larvitdb must be configured and up and running!
 
 ```javascript
-const	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
+const	Intercom	= require('larvitamintercom'),
+	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
 	amsync	= require('larvitamsync');
+
+options.intercom	= new Intercom('AMQP connection string');
 
 amsync.mariadb(options, function(err) {
 	if (err) throw err;
-
 	console.log('Data synced!');
 });
 ```
