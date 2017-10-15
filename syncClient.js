@@ -11,8 +11,7 @@ function SyncClient(options, cb) {
 
 	that.options	= options;
 	that.responseReceived	= false;
-
-	that.extIntercom = that.options.intercom;
+	that.extIntercom	= that.options.intercom;
 
 	// We are strictly in need of the intercom!
 	if ( ! (that.extIntercom instanceof Intercom)) {
@@ -23,6 +22,11 @@ function SyncClient(options, cb) {
 
 	// Reconnect so we have a fresh instance of intercom so we do not interfer with others
 	log.verbose(logPrefix + 'Starting temporary intercom');
+
+	if (that.extIntercom.conStr === 'loopback interface') {
+		log.warn(logPrefix + 'Running intercom on "loopback interface", this is probably not what you want');
+	}
+
 	that.intercom = new Intercom(that.extIntercom.conStr);
 	that.intercom.on('ready', function (err) {
 		if (err) return cb(err);
