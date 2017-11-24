@@ -265,7 +265,7 @@ describe('Basics', function () {
 	});
 
 	it('server with port range', function (done) {
-		const	exchangeName	= 'test_dataDump_server',
+		const	exchangeName	= 'test_dataDump_server2',
 			intercom1	= new Intercom(require(intercomConfigFile)),
 			intercom2	= new Intercom(require(intercomConfigFile)),
 			options	= {'exchange': exchangeName},
@@ -294,7 +294,6 @@ describe('Basics', function () {
 				reqOptions.uri = 'http://' + message.endpoints[0].host;
 			}
 
-			console.log(message.endpoints[0]);
 			assert.strictEqual(message.endpoints[0].port >= options.minPort, true);
 			assert.strictEqual(message.endpoints[0].port <= options.maxPort, true);
 
