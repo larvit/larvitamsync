@@ -328,7 +328,7 @@ describe('Basics', function () {
 
 		// Send the request to the queue
 		tasks.push(function (cb) {
-			intercom1.send({'action': 'requestDump', 'noOfTokens': 1}, {'exchange': exchangeName}, cb);
+			intercom1.send({'action': 'requestDump'}, {'exchange': exchangeName}, cb);
 		});
 
 		async.series(tasks, function (err) {
