@@ -294,6 +294,10 @@ describe('Basics', function () {
 				reqOptions.uri = 'http://' + message.endpoints[0].host;
 			}
 
+			console.log(message.endpoints[0]);
+			assert.strictEqual(message.endpoints[0].port >= options.minPort, true);
+			assert.strictEqual(message.endpoints[0].port <= options.maxPort, true);
+
 			reqOptions.uri	+= ':' + message.endpoints[0].port;
 
 			reqOptions.headers	= {'token': message.endpoints[0].token};

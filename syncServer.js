@@ -145,9 +145,9 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 		log.verbose(logPrefix + 'port range between "' + that.options.minPort + '" and "' + that.options.maxPort + '" specified, trying to find available port');
 
 		fp(that.options.minPort, that.options.maxPort, function (err, port) {
+			console.log('using port ----' + port);
 			if (err) {
 				log.error(logPrefix + 'could not get port within specified range, using random port instead');
-				server.listen(0);
 			} else {
 				log.verbose(logPrefix + 'found port within range: "' + port + '"');
 				server.listen(port);
