@@ -135,9 +135,9 @@ describe('Basics', function () {
 			assert(message.endpoints, 'message.endpoints must an array with entries');
 
 			if (message.endpoints[0].family === 'IPv6') {
-				reqOptions.uri = 'http://[' + message.endpoints[0].host + ']';
+				reqOptions.uri	= 'http://[' + message.endpoints[0].host + ']';
 			} else {
-				reqOptions.uri = 'http://' + message.endpoints[0].host;
+				reqOptions.uri	= 'http://' + message.endpoints[0].host;
 			}
 
 			reqOptions.uri	+= ':' + message.endpoints[0].port;
@@ -171,7 +171,7 @@ describe('Basics', function () {
 
 		// Send the request to the queue
 		tasks.push(function (cb) {
-			intercom1.send({'action': 'requestDump', 'noOfTokens': 1}, {'exchange': exchangeName}, cb);
+			intercom1.send({'action': 'requestDump'}, {'exchange': exchangeName}, cb);
 		});
 
 		async.series(tasks, function (err) {
