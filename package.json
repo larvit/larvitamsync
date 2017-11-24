@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "async": "^2.1.4",
+    "find-free-port": "^1.0.2",
     "larvitamintercom": "^0.2.0",
     "larvitdb": "^1.2.5",
     "uuid": "^3.0.1",

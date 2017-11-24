@@ -263,6 +263,78 @@ describe('Basics', function () {
 			if (err) throw err;
 		});
 	});
+
+	it('server with port range', function (done) {
+		const	exchangeName	= 'test_dataDump_server',
+			intercom1	= new Intercom(require(intercomConfigFile)),
+			intercom2	= new Intercom(require(intercomConfigFile)),
+			options	= {'exchange': exchangeName},
+			tasks	= [];
+
+		let	msgHandled	= false;
+
+		this.slow(500);
+
+		function handleMsg(message, ack) {
+			const	reqOptions	= {};
+
+			ack();
+
+			if (message.action !== 'dumpResponse' || msgHandled !== false) {
+				return;
+			}
+
+			msgHandled = true;
+
+			assert(message.endpoints, 'message.endpoints must an array with entries');
+
+			if (message.endpoints[0].family === 'IPv6') {
+				reqOptions.uri = 'http://[' + message.endpoints[0].host + ']';
+			} else {
+				reqOptions.uri = 'http://' + message.endpoints[0].host;
+			}
+
+			reqOptions.uri	+= ':' + message.endpoints[0].port;
+
+			reqOptions.headers	= {'token': message.endpoints[0].token};
+
+			request(reqOptions, function (err, res, body) {
+				if (err) throw err;
+
+				assert.deepEqual(_.trim(body), _.trim(sql));
+				done();
+			});
+		}
+
+		// Start server
+		tasks.push(function (cb) {
+			options.dataDumpCmd = {
+				'command':	'echo',
+				'args':	[sql]
+			};
+
+			options['Content-Type']	= 'application/sql';
+			options.intercom	= intercom2;
+			options.minPort	= 9000;
+			options.maxPort	= 9100;
+
+			new amsync.SyncServer(options, cb);
+		});
+
+		// Subscribe to happenings on the queue on intercom1
+		tasks.push(function (cb) {
+			intercom1.subscribe({'exchange': exchangeName}, handleMsg, cb);
+		});
+
+		// Send the request to the queue
+		tasks.push(function (cb) {
+			intercom1.send({'action': 'requestDump', 'noOfTokens': 1}, {'exchange': exchangeName}, cb);
+		});
+
+		async.series(tasks, function (err) {
+			if (err) throw err;
+		});
+	});
 });
 
 describe('Database', function () {

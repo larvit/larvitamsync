@@ -6,6 +6,7 @@ const	topLogPrefix	= 'larvitamsync: syncServer.js: ',
 	http	= require('http'),
 	log	= require('winston'),
 	os	= require('os'),
+	fp	= require('find-free-port'),
 	nics	= os.networkInterfaces();
 
 function SyncServer(options, cb) {
@@ -108,7 +109,6 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 
 		that.handleHttpReq(req, res);
 	});
-	server.listen(0);
 
 	server.on('listening', function () {
 		const	servedPort	= server.address().port,
@@ -140,6 +140,22 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 		log.verbose(logPrefix + 'http server stopped due to timeout since no request came in.');
 		server.close();
 	}, 60000);
+
+	if (that.options.minPort && that.options.maxPort) {
+		log.verbose(logPrefix + 'port range between "' + that.options.minPort + '" and "' + that.options.maxPort + '" specified, trying to find available port');
+
+		fp(that.options.minPort, that.options.maxPort, function (err, port) {
+			if (err) {
+				log.error(logPrefix + 'could not get port within specified range, using random port instead');
+				server.listen(0);
+			} else {
+				log.verbose(logPrefix + 'found port within range: "' + port + '"');
+				server.listen(port);
+			}
+		});
+	} else {
+		server.listen(0);
+	}
 };
 
 SyncServer.prototype.listenForRequests = function listenForRequests(cb) {
