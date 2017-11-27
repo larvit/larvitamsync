@@ -141,6 +141,8 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 		server.close();
 	}, 60000);
 
+	if (that.options.host) log.verbose(logPrefix + 'Using configured hostname "' + that.options.host + '"');
+
 	if (that.options.minPort && that.options.maxPort) {
 		log.verbose(logPrefix + 'port range between "' + that.options.minPort + '" and "' + that.options.maxPort + '" specified, trying to find available port');
 
