@@ -122,7 +122,7 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 					message.endpoints.push({
 						'protocol':	'http',
 						'family':	nicAddress.family,
-						'host':	nicAddress.address,
+						'host':	that.options.host || nicAddress.address,
 						'port':	servedPort,
 						'token':	token
 					});

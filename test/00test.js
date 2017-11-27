@@ -338,6 +338,61 @@ describe('Basics', function () {
 			if (err) throw err;
 		});
 	});
+
+	it('server with specific host', function (done) {
+		const	exchangeName	= 'test_dataDump_server3',
+			intercom1	= new Intercom(require(intercomConfigFile)),
+			intercom2	= new Intercom(require(intercomConfigFile)),
+			options	= {'exchange': exchangeName},
+			tasks	= [];
+
+		let	msgHandled	= false;
+
+		this.slow(500);
+
+		function handleMsg(message, ack) {
+			ack();
+
+			if (message.action !== 'dumpResponse' || msgHandled !== false) {
+				return;
+			}
+
+			msgHandled = true;
+
+			assert(message.endpoints, 'message.endpoints must an array with entries');
+
+			assert.strictEqual(message.endpoints[0].host, 'untz.com');
+			done();
+		}
+
+		// Start server
+		tasks.push(function (cb) {
+			options.dataDumpCmd = {
+				'command':	'echo',
+				'args':	[sql]
+			};
+
+			options['Content-Type']	= 'application/sql';
+			options.intercom	= intercom2;
+			options.host	= 'untz.com';
+
+			new amsync.SyncServer(options, cb);
+		});
+
+		// Subscribe to happenings on the queue on intercom1
+		tasks.push(function (cb) {
+			intercom1.subscribe({'exchange': exchangeName}, handleMsg, cb);
+		});
+
+		// Send the request to the queue
+		tasks.push(function (cb) {
+			intercom1.send({'action': 'requestDump'}, {'exchange': exchangeName}, cb);
+		});
+
+		async.series(tasks, function (err) {
+			if (err) throw err;
+		});
+	});
 });
 
 describe('Database', function () {
