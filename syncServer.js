@@ -4,10 +4,9 @@ const	topLogPrefix	= 'larvitamsync: syncServer.js: ',
 	uuidLib	= require('uuid'),
 	spawn	= require('child_process').spawn,
 	http	= require('http'),
+	nics	= require('os').networkInterfaces(),
 	log	= require('winston'),
-	os	= require('os'),
-	fp	= require('find-free-port'),
-	nics	= os.networkInterfaces();
+	fp	= require('find-free-port');
 
 function SyncServer(options, cb) {
 	const	that	= this;
