@@ -78,7 +78,7 @@ SyncClient.prototype.handleMsg = function (message, ack, cb) {
 	}
 
 	if ( ! message.endpoints[0].protocol) {
-		message.endpoints[0].protocol = 'http';
+		message.endpoints[0].protocol	= 'http';
 	}
 
 	reqOptions.protocol	= message.endpoints[0].protocol + ':';
@@ -86,9 +86,11 @@ SyncClient.prototype.handleMsg = function (message, ack, cb) {
 	reqOptions.port	= message.endpoints[0].port;
 	reqOptions.headers	= {'token': message.endpoints[0].token};
 
+	log.verbose(logPrefix + 'Sending a sync request. reqOptions: ' + JSON.stringify(reqOptions));
+
 	if (that.options.requestOptions !== undefined) {
 		for (const key of Object.keys(that.options.requestOptions)) {
-			reqOptions[key] = that.options.requestOptions[key];
+			reqOptions[key]	= that.options.requestOptions[key];
 		}
 	}
 
