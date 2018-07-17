@@ -1,6 +1,6 @@
 {
   "name": "larvitamsync",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "description": "Sync data between minions",
   "main": "index.js",
   "directories": {
