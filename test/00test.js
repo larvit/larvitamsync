@@ -393,6 +393,87 @@ describe('Basics', function () {
 			if (err) throw err;
 		});
 	});
+
+	it('server few ports and lots of clients', function (done) {
+		const	exchangeName	= 'test_dataDump_server400',
+			serverIntercom	= new Intercom(require(intercomConfigFile)),
+			clientIntercom	= new Intercom(require(intercomConfigFile)),
+			options	= {'exchange': exchangeName},
+			tasks	= [];
+
+		let recievedData	= 0;
+
+		this.slow(500);
+		this.timeout(3000);
+
+		function handleMsg(message, ack) {
+			const	reqOptions	= {};
+
+			ack();
+
+			if (message.action !== 'dumpResponse') {
+				return;
+			}
+
+			assert(message.endpoints, 'message.endpoints must an array with entries');
+
+			if (message.endpoints[0].family === 'IPv6') {
+				reqOptions.uri = 'http://[' + message.endpoints[0].host + ']';
+			} else {
+				reqOptions.uri = 'http://' + message.endpoints[0].host;
+			}
+
+			assert.strictEqual(message.endpoints[0].port >= options.minPort, true);
+			assert.strictEqual(message.endpoints[0].port <= options.maxPort, true);
+			
+			reqOptions.uri	+= ':' + message.endpoints[0].port;
+
+			reqOptions.headers	= {'token': message.endpoints[0].token};
+
+			request(reqOptions, function (err, res, body) {
+				if (err) throw err;
+
+				assert.deepEqual(_.trim(body), _.trim(sql));
+				recievedData ++;
+
+				// Check if we recieved data 25 times.
+				if (recievedData === 25) done();
+			});
+		}
+
+		// Start server and listen on only 3 ports
+		tasks.push(function (cb) {
+			options.dataDumpCmd = {
+				'command':	'echo',
+				'args':	[sql]
+			};
+
+			options['Content-Type']	= 'application/sql';
+			options.intercom	= serverIntercom;
+			options.minPort	= 8100;
+			options.maxPort	= 8102;
+
+			new amsync.SyncServer(options, cb);
+		});
+
+		// Subscribe to exchange
+		tasks.push(function (cb) {
+			clientIntercom.subscribe({'exchange': exchangeName}, handleMsg, cb);
+		});
+
+		// Send a message on several messages
+		for (let i = 0; i <= 24; i ++) {
+			tasks.push(function (cb) {
+				clientIntercom.send({'action': 'requestDump'}, {'exchange': exchangeName}, cb);
+			});
+		}
+
+		async.series(tasks, function (err) {
+			if (err) throw err;
+		});
+
+
+	});
 });
 
 describe('Database', function () {
