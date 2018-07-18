@@ -32,6 +32,11 @@ options.dataDumpCmd = {
 	'options':	{}
 };
 
+// You can set range of network ports to be used.
+// By not declaring port range a random free port will be used.
+options.minPort	= 5000;
+options.maxPort	= 5100;
+
 new amsync.SyncServer(options, function(err) {
 	if (err) throw err;
 	console.log('Server active');
