@@ -1,12 +1,12 @@
 'use strict';
 
 const	topLogPrefix	= 'larvitamsync: syncServer.js: ',
+	freePort	= require('find-free-port'),
 	uuidLib	= require('uuid'),
 	spawn	= require('child_process').spawn,
 	http	= require('http'),
 	nics	= require('os').networkInterfaces(),
-	log	= require('winston'),
-	fp	= require('find-free-port');
+	log	= require('winston');
 
 function SyncServer(options, cb) {
 	const	that	= this;
@@ -29,6 +29,21 @@ function SyncServer(options, cb) {
 
 	// Subscribe to dump requests
 	that.listenForRequests(cb);
+}
+
+function getFreePort(minPort, maxPort, cb) {
+	const logPrefix = topLogPrefix + '- getFreePort() - ';
+	freePort(minPort, maxPort, function (err, port) {
+		if (err) {
+			log.warn(logPrefix + 'No free port available, trying again. Error: ' + err.message);
+
+			setTimeout(function () {
+				getFreePort(minPort, maxPort, cb);
+			}, 19);
+		} else {
+			cb(null, port);
+		}
+	});
 }
 
 SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
@@ -145,14 +160,15 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 	if (that.options.minPort && that.options.maxPort) {
 		log.verbose(logPrefix + 'port range between "' + that.options.minPort + '" and "' + that.options.maxPort + '" specified, trying to find available port');
 
-		fp(that.options.minPort, that.options.maxPort, function (err, port) {
+		getFreePort(that.options.minPort, that.options.maxPort, function (err, port) {
 			if (err) {
-				log.error(logPrefix + 'could not get port within specified range, using random port instead');
-			} else {
-				log.verbose(logPrefix + 'found port within range: "' + port + '"');
-				server.listen(port);
+				log.error(logPrefix + 'No available port found');
+				return;
 			}
+			log.verbose(logPrefix + 'found port within range: "' + port + '"');
+			server.listen(port);
 		});
+
 	} else {
 		server.listen(0);
 	}

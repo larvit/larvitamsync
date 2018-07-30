@@ -19,7 +19,7 @@ let	intercomConfigFile,
 // Set up winston
 log.remove(log.transports.Console);
 /**/log.add(log.transports.Console, {
-	'level':	'warn',
+	'level':	'error',
 	'colorize':	true,
 	'timestamp':	true,
 	'json':	false
@@ -388,6 +388,285 @@ describe('Basics', function () {
 		tasks.push(function (cb) {
 			intercom1.send({'action': 'requestDump'}, {'exchange': exchangeName}, cb);
 		});
+
+		async.series(tasks, function (err) {
+			if (err) throw err;
+		});
+	});
+
+	it('single server with short portrange and lots of clients', function (done) {
+		const	exchangeName	= 'test_dataDump_server4',
+			serverIntercom	= new Intercom(require(intercomConfigFile)),
+			clientIntercom	= new Intercom(require(intercomConfigFile)),
+			options	= {'exchange': exchangeName},
+			tasks	= [];
+
+		let recievedData	= 0;
+
+		this.slow(500);
+		this.timeout(3000);
+
+		function handleMsg(message, ack) {
+			const	reqOptions	= {};
+
+			ack();
+
+			if (message.action !== 'dumpResponse') {
+				return;
+			}
+
+			assert(message.endpoints, 'message.endpoints must an array with entries');
+
+			if (message.endpoints[0].family === 'IPv6') {
+				reqOptions.uri = 'http://[' + message.endpoints[0].host + ']';
+			} else {
+				reqOptions.uri = 'http://' + message.endpoints[0].host;
+			}
+
+			assert.strictEqual(message.endpoints[0].port >= options.minPort, true);
+			assert.strictEqual(message.endpoints[0].port <= options.maxPort, true);
+			
+			reqOptions.uri	+= ':' + message.endpoints[0].port;
+
+			reqOptions.headers	= {'token': message.endpoints[0].token};
+
+			request(reqOptions, function (err, res, body) {
+				if (err) throw err;
+
+				assert.deepEqual(_.trim(body), _.trim(sql));
+				recievedData ++;
+				// Check if we recieved data 25 times.
+				if (recievedData === 25) done();
+			});
+		}
+
+		// Start server and listen on only 3 ports
+		tasks.push(function (cb) {
+			options.dataDumpCmd = {
+				'command':	'echo',
+				'args':	[sql]
+			};
+
+			options['Content-Type']	= 'application/sql';
+			options.intercom	= serverIntercom;
+			options.minPort	= 8100;
+			options.maxPort	= 8102;
+
+			new amsync.SyncServer(options, cb);
+		});
+
+		// Subscribe to exchange
+		tasks.push(function (cb) {
+			clientIntercom.subscribe({'exchange': exchangeName}, handleMsg, cb);
+		});
+
+		// Send a message on several messages
+		for (let i = 0; i <= 24; i ++) {
+			tasks.push(function (cb) {
+				clientIntercom.send({'action': 'requestDump'}, {'exchange': exchangeName}, cb);
+			});
+		}
+
+		async.series(tasks, function (err) {
+			if (err) throw err;
+		});
+	});
+
+
+	it('multiple servers with short portrange and lots of clients', function (done) {
+		const	serverIntercom1	= new Intercom(require(intercomConfigFile)),
+			serverIntercom2	= new Intercom(require(intercomConfigFile)),
+			serverIntercom3	= new Intercom(require(intercomConfigFile)),
+			serverIntercom4	= new Intercom(require(intercomConfigFile)),
+			serverIntercom5	= new Intercom(require(intercomConfigFile)),
+			clientIntercom1	= new Intercom(require(intercomConfigFile)),
+			clientIntercom2	= new Intercom(require(intercomConfigFile)),
+			clientIntercom3	= new Intercom(require(intercomConfigFile)),
+			clientIntercom4	= new Intercom(require(intercomConfigFile)),
+			clientIntercom5	= new Intercom(require(intercomConfigFile)),
+			tasks	= [];
+
+		let recievedData	= 0;
+
+		this.slow(2000);
+		this.timeout(4000);
+
+		function handleMsg(message, ack) {
+			const	reqOptions	= {};
+
+			ack();
+
+			if (message.action !== 'dumpResponse') return;
+
+			assert(message.endpoints, 'message.endpoints must an array with entries');
+
+			if (message.endpoints[0].family === 'IPv6') {
+				reqOptions.uri = 'http://[' + message.endpoints[0].host + ']';
+			} else {
+				reqOptions.uri = 'http://' + message.endpoints[0].host;
+			}
+
+			assert.strictEqual(message.endpoints[0].port >= 8100, true);
+			assert.strictEqual(message.endpoints[0].port <= 8104, true);
+			
+			reqOptions.uri	+= ':' + message.endpoints[0].port;
+
+			reqOptions.headers	= {'token': message.endpoints[0].token};
+
+			request(reqOptions, function (err, res, body) {
+				if (err) throw err;
+
+				assert.deepEqual(_.trim(body), _.trim(sql));
+				recievedData ++;
+				// Check if we recieved data 125 times.
+				if (recievedData === 125) done();
+			});
+		}
+
+		// Start server1 and listen on 5 ports
+		tasks.push(function (cb) {
+			const	options = {
+				'minPort': 8100,
+				'maxPort': 8104,
+				'Content-Type': 'application/sql',
+				'intercom': serverIntercom1,
+				'exchange': 'test_dataDump_server5',
+				'dataDumpCmd': {
+					'command':	'echo',
+					'args':	[sql]
+				}
+			};
+
+			new amsync.SyncServer(options, cb);
+		});
+
+		// Start server2 and listen on 5 ports
+		tasks.push(function (cb) {
+			const	options = {
+				'minPort': 8100,
+				'maxPort': 8104,
+				'Content-Type': 'application/sql',
+				'intercom': serverIntercom2,
+				'exchange': 'test_dataDump_server6',
+				'dataDumpCmd': {
+					'command':	'echo',
+					'args':	[sql]
+				}
+			};
+
+			new amsync.SyncServer(options, cb);
+		});
+
+		// Start server3 and listen on 5 ports
+		tasks.push(function (cb) {
+			const	options = {
+				'minPort': 8100,
+				'maxPort': 8104,
+				'Content-Type': 'application/sql',
+				'intercom': serverIntercom3,
+				'exchange': 'test_dataDump_server7',
+				'dataDumpCmd': {
+					'command':	'echo',
+					'args':	[sql]
+				}
+			};
+			
+			new amsync.SyncServer(options, cb);
+		});
+
+		// Start server4 and listen on 5 ports
+		tasks.push(function (cb) {
+			const	options = {
+				'minPort': 8100,
+				'maxPort': 8104,
+				'Content-Type': 'application/sql',
+				'intercom': serverIntercom4,
+				'exchange': 'test_dataDump_server8',
+				'dataDumpCmd': {
+					'command':	'echo',
+					'args':	[sql]
+				}
+			};
+			
+			new amsync.SyncServer(options, cb);
+		});
+
+		// Start server5 and listen on 5 ports
+		tasks.push(function (cb) {
+			const	options = {
+				'minPort': 8100,
+				'maxPort': 8104,
+				'Content-Type': 'application/sql',
+				'intercom': serverIntercom5,
+				'exchange': 'test_dataDump_server9',
+				'dataDumpCmd': {
+					'command':	'echo',
+					'args':	[sql]
+				}
+			};
+			
+			new amsync.SyncServer(options, cb);
+		});
+
+		// Start subscription on clientIntercom1 listening to test_dataDump_server5
+		tasks.push(function (cb) {
+			clientIntercom1.subscribe({'exchange': 'test_dataDump_server5'}, handleMsg, cb);
+		});
+
+		// Send a several messages on clientIntercom1 and test_dataDump_server5
+		for (let i = 0; i <= 24; i ++) {
+			tasks.push(function (cb) {
+				clientIntercom1.send({'action': 'requestDump'}, {'exchange': 'test_dataDump_server5'}, cb);
+			});
+		}
+
+		// Start subscription on clientIntercom2 listening to test_dataDump_server6
+		tasks.push(function (cb) {
+			clientIntercom2.subscribe({'exchange': 'test_dataDump_server6'}, handleMsg, cb);
+		});
+
+		// Send a several messages on clientIntercom2 and test_dataDump_server6
+		for (let i = 0; i <= 24; i ++) {
+			tasks.push(function (cb) {
+				clientIntercom2.send({'action': 'requestDump'}, {'exchange': 'test_dataDump_server6'}, cb);
+			});
+		}
+
+		// Start subscription on clientIntercom3 listening to test_dataDump_server7
+		tasks.push(function (cb) {
+			clientIntercom3.subscribe({'exchange': 'test_dataDump_server7'}, handleMsg, cb);
+		});
+
+		// Send a several messages on clientIntercom3 and test_dataDump_server7
+		for (let i = 0; i <= 24; i ++) {
+			tasks.push(function (cb) {
+				clientIntercom3.send({'action': 'requestDump'}, {'exchange': 'test_dataDump_server7'}, cb);
+			});
+		}
+
+		// Start subscription on clientIntercom4 listening to test_dataDump_server8
+		tasks.push(function (cb) {
+			clientIntercom4.subscribe({'exchange': 'test_dataDump_server8'}, handleMsg, cb);
+		});
+
+		// Send a several messages on clientIntercom4 and test_dataDump_server8
+		for (let i = 0; i <= 24; i ++) {
+			tasks.push(function (cb) {
+				clientIntercom4.send({'action': 'requestDump'}, {'exchange': 'test_dataDump_server8'}, cb);
+			});
+		}
+
+		// Start subscription on clientIntercom5 listening to test_dataDump_server9
+		tasks.push(function (cb) {
+			clientIntercom5.subscribe({'exchange': 'test_dataDump_server9'}, handleMsg, cb);
+		});
+
+		// Send a several messages on clientIntercom5 and test_dataDump_server9
+		for (let i = 0; i <= 24; i ++) {
+			tasks.push(function (cb) {
+				clientIntercom5.send({'action': 'requestDump'}, {'exchange': 'test_dataDump_server9'}, cb);
+			});
+		}
 
 		async.series(tasks, function (err) {
 			if (err) throw err;
