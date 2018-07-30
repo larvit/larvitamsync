@@ -32,7 +32,7 @@ function SyncServer(options, cb) {
 }
 
 function getFreePort(minPort, maxPort, cb) {
-	const logPrefix = topLogPrefix + '- getFreePort() - ';
+	const	logPrefix	= topLogPrefix + '- getFreePort() - ';
 	freePort(minPort, maxPort, function (err, port) {
 		if (err) {
 			log.warn(logPrefix + 'No free port available, trying again. Error: ' + err.message);
@@ -160,17 +160,33 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 	if (that.options.minPort && that.options.maxPort) {
 		log.verbose(logPrefix + 'port range between "' + that.options.minPort + '" and "' + that.options.maxPort + '" specified, trying to find available port');
 
-		getFreePort(that.options.minPort, that.options.maxPort, function (err, port) {
-			if (err) {
-				log.error(logPrefix + 'No available port found');
-				return;
+		server.on('error', function (err) {
+			if (err.message && err.message.substring(0, 17) === 'listen EADDRINUSE') {
+				log.warn(logPrefix + 'Port: "' + err.message.substring(21) + '" in use, retrying');
+				tryToGetFreePort();
+			} else {
+				log.error(logPrefix + err.message);
+				throw err;
 			}
-			log.verbose(logPrefix + 'found port within range: "' + port + '"');
-			server.listen(port);
 		});
 
+		function tryToGetFreePort() {
+			getFreePort(that.options.minPort, that.options.maxPort, function (err, port) {
+				if (err) {
+					log.error(logPrefix + 'No available port found');
+					return;
+				}
+				log.verbose(logPrefix + 'found port within range: "' + port + '"');
+				server.listen(port);
+			});
+		}
+		tryToGetFreePort();
 	} else {
 		server.listen(0);
+		server.on('error', function (err) {
+			log.error(logPrefix + err.message);
+			throw err;
+		});
 	}
 };
 

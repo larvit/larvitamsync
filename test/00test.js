@@ -16,6 +16,12 @@ const	Intercom	= require('larvitamintercom'),
 let	intercomConfigFile,
 	intercom;
 
+process.on('warning', (warning) => {
+	console.log(warning.name);
+	console.log(warning.message);
+	console.log(warning.stack);
+});
+
 // Set up winston
 log.remove(log.transports.Console);
 /**/log.add(log.transports.Console, {
@@ -425,7 +431,7 @@ describe('Basics', function () {
 
 			assert.strictEqual(message.endpoints[0].port >= options.minPort, true);
 			assert.strictEqual(message.endpoints[0].port <= options.maxPort, true);
-			
+
 			reqOptions.uri	+= ':' + message.endpoints[0].port;
 
 			reqOptions.headers	= {'token': message.endpoints[0].token};
@@ -508,7 +514,7 @@ describe('Basics', function () {
 
 			assert.strictEqual(message.endpoints[0].port >= 8100, true);
 			assert.strictEqual(message.endpoints[0].port <= 8104, true);
-			
+
 			reqOptions.uri	+= ':' + message.endpoints[0].port;
 
 			reqOptions.headers	= {'token': message.endpoints[0].token};
@@ -570,7 +576,7 @@ describe('Basics', function () {
 					'args':	[sql]
 				}
 			};
-			
+
 			new amsync.SyncServer(options, cb);
 		});
 
@@ -587,7 +593,7 @@ describe('Basics', function () {
 					'args':	[sql]
 				}
 			};
-			
+
 			new amsync.SyncServer(options, cb);
 		});
 
@@ -604,7 +610,7 @@ describe('Basics', function () {
 					'args':	[sql]
 				}
 			};
-			
+
 			new amsync.SyncServer(options, cb);
 		});
 
