@@ -410,7 +410,7 @@ describe('Basics', function () {
 		let recievedData	= 0;
 
 		this.slow(500);
-		this.timeout(3000);
+		this.timeout(5000);
 
 		function handleMsg(message, ack) {
 			const	reqOptions	= {};
@@ -495,7 +495,7 @@ describe('Basics', function () {
 		let recievedData	= 0;
 
 		this.slow(2000);
-		this.timeout(4000);
+		this.timeout(8000);
 
 		function handleMsg(message, ack) {
 			const	reqOptions	= {};
