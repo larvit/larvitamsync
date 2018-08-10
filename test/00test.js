@@ -103,7 +103,7 @@ before(function (done) {
 				fs.stat(intercomConfigFile, function (err) {
 					if (err) throw err;
 
-					intercomConf	= require(intercomConfigFile);
+					intercomConf	= {'conStr': require(intercomConfigFile)};
 					intercomConf.log	= log;
 
 					log.verbose('Intercom config: ' + JSON.stringify(intercomConf));
