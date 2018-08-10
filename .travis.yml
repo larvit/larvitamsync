@@ -31,6 +31,7 @@ services:
   - mysql
 
 addons:
+  mariadb: '10.3'
   apt:
     sources:
     - ubuntu-toolchain-r-test

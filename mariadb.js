@@ -3,10 +3,10 @@
 const	topLogPrefix	= 'larvitamsync: mariadb.js: ',
 	SyncClient	= require(__dirname + '/syncClient.js'),
 	uuidLib	= require('uuid'),
+	LUtils	= require('larvitutils'),
+	lUtils	= new LUtils(),
 	spawn	= require('child_process').spawn,
 	async	= require('async'),
-	log	= require('winston'),
-	db	= require('larvitdb'),
 	os	= require('os'),
 	fs	= require('fs');
 
@@ -16,7 +16,19 @@ function sync(options, cb) {
 		tasks	= [],
 		that	= this;
 
-	that.options = options;
+	if ( ! options.log) {
+		options.log	= new lUtils.Log();
+	}
+
+	if ( ! options.db) {
+		const	err	= new Error('Required option "db" is missing');
+		options.log.error(logPrefix + err.message);
+		throw err;
+	}
+
+	that.options	= options;
+	that.log	= that.options.log;
+	that.db	= that.options.db;
 
 	// Write tmp SQL file to disk
 	tasks.push(function (cb) {
@@ -40,29 +52,29 @@ function sync(options, cb) {
 		const	mysqlOptions	= [],
 			f	= fs.openSync(tmpFileName, 'r');
 
-		if (db.conf.host) {
+		if (that.db.conf.host) {
 			mysqlOptions.push('-h');
-			mysqlOptions.push(db.conf.host);
-		} else if (db.conf.socketPath) {
+			mysqlOptions.push(that.db.conf.host);
+		} else if (that.db.conf.socketPath) {
 			mysqlOptions.push('-S');
-			mysqlOptions.push(db.conf.socketPath);
+			mysqlOptions.push(that.db.conf.socketPath);
 		}
 
 		mysqlOptions.push('-u');
-		mysqlOptions.push(db.conf.user);
+		mysqlOptions.push(that.db.conf.user);
 
-		if (db.conf.password) {
-			mysqlOptions.push('-p' + db.conf.password);
+		if (that.db.conf.password) {
+			mysqlOptions.push('-p' + that.db.conf.password);
 		}
 
-		mysqlOptions.push(db.conf.database);
+		mysqlOptions.push(that.db.conf.database);
 
 		let shMysql;
 
 		shMysql	= spawn('mysql', mysqlOptions, {'stdio': [f, 'pipe', process.stderr]});
 
 		shMysql.on('close', function () {
-			log.info(logPrefix + 'Database synced on exchange: "' + that.options.exchange + '"');
+			that.log.info(logPrefix + 'Database synced on exchange: "' + that.options.exchange + '"');
 			cb();
 		});
 	});
@@ -71,7 +83,7 @@ function sync(options, cb) {
 	tasks.push(function (cb) {
 		fs.unlink(tmpFileName, function (err) {
 			if (err) {
-				log.warn(logPrefix + 'Could not remove ' + tmpFilename + ' err: ' + err.message);
+				that.log.warn(logPrefix + 'Could not remove ' + tmpFilename + ' err: ' + err.message);
 			}
 			cb(err);
 		});
@@ -80,4 +92,4 @@ function sync(options, cb) {
 	async.series(tasks, cb);
 }
 
-exports = module.exports	= sync;
+exports = module.exports = sync;

@@ -3,11 +3,13 @@
 const	Intercom	= require('larvitamintercom'),
 	request	= require('request'),
 	assert	= require('assert'),
+	LUtils	= require('larvitutils'),
+	lUtils	= new LUtils(),
 	amsync	= require(__dirname + '/../index.js'),
 	async	= require('async'),
 	http	= require('http'),
 	nics	= require('os').networkInterfaces(),
-	log	= require('winston'),
+	log	= new lUtils.Log('error'),
 	sql	= 'CREATE TABLE `bosse` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY, `name` varchar(255) NOT NULL); INSERT INTO bosse (name) VALUES(\'duh\');',
 	db	= require('larvitdb'),
 	fs	= require('fs'),
@@ -22,15 +24,6 @@ process.on('warning', (warning) => {
 	console.log(warning.stack);
 });
 
-// Set up winston
-log.remove(log.transports.Console);
-/**/log.add(log.transports.Console, {
-	'level':	'error',
-	'colorize':	true,
-	'timestamp':	true,
-	'json':	false
-});/**/
-
 before(function (done) {
 	this.timeout(10000);
 	const	tasks	= [];
@@ -40,30 +33,39 @@ before(function (done) {
 		let confFile;
 
 		if (process.env.DBCONFFILE === undefined) {
-			confFile = __dirname + '/../config/db_test.json';
+			confFile	= __dirname + '/../config/db_test.json';
 		} else {
-			confFile = process.env.DBCONFFILE;
+			confFile	= process.env.DBCONFFILE;
 		}
 
 		log.verbose('DB config file: "' + confFile + '"');
 
 		// First look for absolute path
 		fs.stat(confFile, function (err) {
+			let	dbConf;
+
 			if (err) {
 
 				// Then look for this string in the config folder
 				confFile = __dirname + '/../config/' + confFile;
 				fs.stat(confFile, function (err) {
 					if (err) throw err;
-					log.verbose('DB config: ' + JSON.stringify(require(confFile)));
-					db.setup(require(confFile), cb);
+
+					dbConf	= require(confFile);
+					dbConf.log	= log;
+
+					log.verbose('DB config: ' + JSON.stringify(dbConf));
+					db.setup(dbConf, cb);
 				});
 
 				return;
 			}
 
-			log.verbose('DB config: ' + JSON.stringify(require(confFile)));
-			db.setup(require(confFile), cb);
+			dbConf	= require(confFile);
+			dbConf.log	= log;
+
+			log.verbose('DB config: ' + JSON.stringify(dbConf));
+			db.setup(dbConf, cb);
 		});
 	});
 
@@ -83,31 +85,40 @@ before(function (done) {
 	// Get intercom config file and start intercom
 	tasks.push(function (cb) {
 		if (process.env.INTCONFFILE === undefined) {
-			intercomConfigFile = __dirname + '/../config/amqp_test.json';
+			intercomConfigFile	= __dirname + '/../config/amqp_test.json';
 		} else {
-			intercomConfigFile = process.env.INTCONFFILE;
+			intercomConfigFile	= process.env.INTCONFFILE;
 		}
 
 		log.verbose('Intercom config file: "' + intercomConfigFile + '"');
 
 		// First look for absolute path
 		fs.stat(intercomConfigFile, function (err) {
+			let	intercomConf;
+
 			if (err) {
 
 				// Then look for this string in the config folder
 				intercomConfigFile = __dirname + '/../config/' + intercomConfigFile;
 				fs.stat(intercomConfigFile, function (err) {
 					if (err) throw err;
-					log.verbose('Intercom config: ' + JSON.stringify(require(intercomConfigFile)));
-					intercom	= new Intercom(require(intercomConfigFile));
+
+					intercomConf	= require(intercomConfigFile);
+					intercomConf.log	= log;
+
+					log.verbose('Intercom config: ' + JSON.stringify(intercomConf));
+					intercom	= new Intercom(intercomConf);
 					intercom.on('ready', cb);
 				});
 
 				return;
 			}
 
-			log.verbose('Intercom config: ' + JSON.stringify(require(intercomConfigFile)));
-			intercom = new Intercom(require(intercomConfigFile));
+			intercomConf	= {'conStr': require(intercomConfigFile)};
+			intercomConf.log	= log;
+
+			log.verbose('Intercom config: ' + JSON.stringify(intercomConf));
+			intercom	= new Intercom(intercomConf);
 			intercom.on('ready', cb);
 		});
 	});
@@ -118,8 +129,8 @@ before(function (done) {
 describe('Basics', function () {
 	it('server', function (done) {
 		const	exchangeName	= 'test_dataDump_server',
-			intercom1	= new Intercom(require(intercomConfigFile)),
-			intercom2	= new Intercom(require(intercomConfigFile)),
+			intercom1	= new Intercom({'conStr': require(intercomConfigFile), 'log': log}),
+			intercom2	= new Intercom({'conStr': require(intercomConfigFile), 'log': log}),
 			options	= {'exchange': exchangeName},
 			tasks	= [];
 
@@ -166,6 +177,7 @@ describe('Basics', function () {
 
 			options['Content-Type']	= 'application/sql';
 			options.intercom	= intercom2;
+			options.log	= log;
 
 			new amsync.SyncServer(options, cb);
 		});
@@ -188,8 +200,8 @@ describe('Basics', function () {
 	it('client', function (done) {
 		const	exchangeName	= 'test_dataDump_client',
 			msgContent	= 'wlüpp!',
-			intercom1	= new Intercom(require(intercomConfigFile)),
-			intercom2	= new Intercom(require(intercomConfigFile)),
+			intercom1	= new Intercom({'conStr': require(intercomConfigFile), 'log': log}),
+			intercom2	= new Intercom({'conStr': require(intercomConfigFile), 'log': log}),
 			token	= 'fjärtkorv',
 			tasks	= [];
 
@@ -245,12 +257,12 @@ describe('Basics', function () {
 
 		// Start client
 		tasks.push(function (cb) {
-			const	options	= {'exchange': exchangeName, 'intercom': intercom2};
+			const	options	= {'exchange': exchangeName, 'intercom': intercom2, 'log': log};
 
 			new amsync.SyncClient(options, function (err, res) {
 				let	syncData	= Buffer.from('');
 
-				if (err) { cb(err); return; }
+				if (err) return cb(err);
 
 				res.on('data', function (chunk) {
 					syncData	=	Buffer.concat([syncData, chunk], syncData.length + chunk.length);
@@ -272,8 +284,8 @@ describe('Basics', function () {
 
 	it('server with port range', function (done) {
 		const	exchangeName	= 'test_dataDump_server2',
-			intercom1	= new Intercom(require(intercomConfigFile)),
-			intercom2	= new Intercom(require(intercomConfigFile)),
+			intercom1	= new Intercom({'conStr': require(intercomConfigFile), 'log': log}),
+			intercom2	= new Intercom({'conStr': require(intercomConfigFile), 'log': log}),
 			options	= {'exchange': exchangeName},
 			tasks	= [];
 
@@ -326,6 +338,7 @@ describe('Basics', function () {
 			options.intercom	= intercom2;
 			options.minPort	= 9000;
 			options.maxPort	= 9100;
+			options.log	= log;
 
 			new amsync.SyncServer(options, cb);
 		});
@@ -349,7 +362,7 @@ describe('Basics', function () {
 		const	exchangeName	= 'test_dataDump_server3',
 			intercom1	= new Intercom(require(intercomConfigFile)),
 			intercom2	= new Intercom(require(intercomConfigFile)),
-			options	= {'exchange': exchangeName},
+			options	= {'exchange': exchangeName, 'log': log},
 			tasks	= [];
 
 		let	msgHandled	= false;
@@ -402,9 +415,9 @@ describe('Basics', function () {
 
 	it('single server with short portrange and lots of clients', function (done) {
 		const	exchangeName	= 'test_dataDump_server4',
-			serverIntercom	= new Intercom(require(intercomConfigFile)),
-			clientIntercom	= new Intercom(require(intercomConfigFile)),
-			options	= {'exchange': exchangeName},
+			serverIntercom	= new Intercom({'conStr': require(intercomConfigFile), 'log': log}),
+			clientIntercom	= new Intercom({'conStr': require(intercomConfigFile), 'log': log}),
+			options	= {'exchange': exchangeName, 'log': log},
 			tasks	= [];
 
 		let recievedData	= 0;
@@ -457,6 +470,7 @@ describe('Basics', function () {
 			options.intercom	= serverIntercom;
 			options.minPort	= 8100;
 			options.maxPort	= 8102;
+			options.log	= log;
 
 			new amsync.SyncServer(options, cb);
 		});
@@ -480,16 +494,17 @@ describe('Basics', function () {
 
 
 	it('multiple servers with short portrange and lots of clients', function (done) {
-		const	serverIntercom1	= new Intercom(require(intercomConfigFile)),
-			serverIntercom2	= new Intercom(require(intercomConfigFile)),
-			serverIntercom3	= new Intercom(require(intercomConfigFile)),
-			serverIntercom4	= new Intercom(require(intercomConfigFile)),
-			serverIntercom5	= new Intercom(require(intercomConfigFile)),
-			clientIntercom1	= new Intercom(require(intercomConfigFile)),
-			clientIntercom2	= new Intercom(require(intercomConfigFile)),
-			clientIntercom3	= new Intercom(require(intercomConfigFile)),
-			clientIntercom4	= new Intercom(require(intercomConfigFile)),
-			clientIntercom5	= new Intercom(require(intercomConfigFile)),
+		const	serverIntercomConf	= {'conStr': require(intercomConfigFile), 'log': log},
+			serverIntercom1	= new Intercom(serverIntercomConf),
+			serverIntercom2	= new Intercom(serverIntercomConf),
+			serverIntercom3	= new Intercom(serverIntercomConf),
+			serverIntercom4	= new Intercom(serverIntercomConf),
+			serverIntercom5	= new Intercom(serverIntercomConf),
+			clientIntercom1	= new Intercom(serverIntercomConf),
+			clientIntercom2	= new Intercom(serverIntercomConf),
+			clientIntercom3	= new Intercom(serverIntercomConf),
+			clientIntercom4	= new Intercom(serverIntercomConf),
+			clientIntercom5	= new Intercom(serverIntercomConf),
 			tasks	= [];
 
 		let recievedData	= 0;
@@ -532,11 +547,12 @@ describe('Basics', function () {
 		// Start server1 and listen on 5 ports
 		tasks.push(function (cb) {
 			const	options = {
-				'minPort': 8100,
-				'maxPort': 8104,
-				'Content-Type': 'application/sql',
-				'intercom': serverIntercom1,
-				'exchange': 'test_dataDump_server5',
+				'minPort':	8100,
+				'maxPort':	8104,
+				'Content-Type':	'application/sql',
+				'intercom':	serverIntercom1,
+				'exchange':	'test_dataDump_server5',
+				'log':	log,
 				'dataDumpCmd': {
 					'command':	'echo',
 					'args':	[sql]
@@ -549,11 +565,12 @@ describe('Basics', function () {
 		// Start server2 and listen on 5 ports
 		tasks.push(function (cb) {
 			const	options = {
-				'minPort': 8100,
-				'maxPort': 8104,
-				'Content-Type': 'application/sql',
-				'intercom': serverIntercom2,
-				'exchange': 'test_dataDump_server6',
+				'minPort':	8100,
+				'maxPort':	8104,
+				'Content-Type':	'application/sql',
+				'intercom':	serverIntercom2,
+				'exchange':	'test_dataDump_server6',
+				'log':	log,
 				'dataDumpCmd': {
 					'command':	'echo',
 					'args':	[sql]
@@ -566,11 +583,12 @@ describe('Basics', function () {
 		// Start server3 and listen on 5 ports
 		tasks.push(function (cb) {
 			const	options = {
-				'minPort': 8100,
-				'maxPort': 8104,
-				'Content-Type': 'application/sql',
-				'intercom': serverIntercom3,
-				'exchange': 'test_dataDump_server7',
+				'minPort':	8100,
+				'maxPort':	8104,
+				'Content-Type':	'application/sql',
+				'intercom':	serverIntercom3,
+				'exchange':	'test_dataDump_server7',
+				'log':	log,
 				'dataDumpCmd': {
 					'command':	'echo',
 					'args':	[sql]
@@ -583,11 +601,12 @@ describe('Basics', function () {
 		// Start server4 and listen on 5 ports
 		tasks.push(function (cb) {
 			const	options = {
-				'minPort': 8100,
-				'maxPort': 8104,
-				'Content-Type': 'application/sql',
-				'intercom': serverIntercom4,
-				'exchange': 'test_dataDump_server8',
+				'minPort':	8100,
+				'maxPort':	8104,
+				'Content-Type':	'application/sql',
+				'intercom':	serverIntercom4,
+				'exchange':	'test_dataDump_server8',
+				'log':	log,
 				'dataDumpCmd': {
 					'command':	'echo',
 					'args':	[sql]
@@ -600,11 +619,12 @@ describe('Basics', function () {
 		// Start server5 and listen on 5 ports
 		tasks.push(function (cb) {
 			const	options = {
-				'minPort': 8100,
-				'maxPort': 8104,
-				'Content-Type': 'application/sql',
-				'intercom': serverIntercom5,
-				'exchange': 'test_dataDump_server9',
+				'minPort':	8100,
+				'maxPort':	8104,
+				'Content-Type':	'application/sql',
+				'intercom':	serverIntercom5,
+				'exchange':	'test_dataDump_server9',
+				'log':	log,
 				'dataDumpCmd': {
 					'command':	'echo',
 					'args':	[sql]
@@ -683,8 +703,8 @@ describe('Basics', function () {
 describe('Database', function () {
 	it('should sync MariaDB/MySQL stuff', function (done) {
 		const	exchangeName	= 'test_dataDump_mariadb',
-			intercom1	= new Intercom(require(intercomConfigFile)),
-			intercom2	= new Intercom(require(intercomConfigFile)),
+			intercom1	= new Intercom({'conStr': require(intercomConfigFile), 'log': log}),
+			intercom2	= new Intercom({'conStr': require(intercomConfigFile), 'log': log}),
 			tasks	= [];
 
 		this.slow(500);
@@ -700,13 +720,14 @@ describe('Database', function () {
 
 			options['Content-Type']	= 'application/sql';
 			options.intercom	= intercom1;
+			options.log	= log;
 
 			new amsync.SyncServer(options, cb);
 		});
 
 		// Write sync to db
 		tasks.push(function (cb) {
-			const	options	= {'exchange': exchangeName, 'intercom': intercom2};
+			const	options	= {'exchange': exchangeName, 'intercom': intercom2, 'log': log, 'db': db};
 
 			amsync.mariadb(options, cb);
 		});
@@ -734,8 +755,8 @@ describe('Database', function () {
 describe('Custom http receiver', function () {
 	it('should read path', function (done) {
 		const	exchangeName	= 'test_dataDump_custom',
-			intercom1	= new Intercom(require(intercomConfigFile)),
-			intercom2	= new Intercom(require(intercomConfigFile)),
+			intercom1	= new Intercom({'conStr': require(intercomConfigFile), 'log': log}),
+			intercom2	= new Intercom({'conStr': require(intercomConfigFile), 'log': log}),
 			tasks	= [];
 
 		this.slow(500);
@@ -746,13 +767,13 @@ describe('Custom http receiver', function () {
 
 		// Start server
 		tasks.push(function (cb) {
-			const	options	= {'exchange': exchangeName, 'intercom': intercom1};
+			const	options	= {'exchange': exchangeName, 'intercom': intercom1, 'log': log};
 
 			let	syncServer;
 
-			syncServer = new amsync.SyncServer(options, cb);
+			syncServer	= new amsync.SyncServer(options, cb);
 
-			syncServer.handleHttpReq_original = syncServer.handleHttpReq;
+			syncServer.handleHttpReq_original	= syncServer.handleHttpReq;
 
 			syncServer.handleHttpReq = function (req, res) {
 
@@ -773,7 +794,7 @@ describe('Custom http receiver', function () {
 
 		// Start the client
 		tasks.push(function (cb) {
-			const	options	= {'exchange': exchangeName, 'intercom': intercom2};
+			const	options	= {'exchange': exchangeName, 'intercom': intercom2, 'log': log};
 
 			options.requestOptions	= {'path': '/foobar'};
 

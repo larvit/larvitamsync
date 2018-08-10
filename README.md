@@ -12,10 +12,16 @@ Sync data between minions
 
 ```javascript
 const	Intercom	= require('larvitamintercom'),
+	winston	= require('winston'),
 	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
-	amsync	= require('larvitamsync');
+	amsync	= require('larvitamsync'),
+	log	= winston.createLogger({'transports': [new winston.transports.Console()]});
 
-options.intercom	= new Intercom('AMQP connection string');
+options.intercom	= new Intercom({'conStr': 'AMQP connection string', 'log': log});
+
+// Set the log instance for the amsync server
+// This is optional, but recommended
+options.log	= log;
 
 // The stdout from this command will be piped to the data slave
 // This will be be the input for the
@@ -48,13 +54,16 @@ new amsync.SyncServer(options, function(err) {
 On each data dump request there is a http request and this can be handled manually
 
 ```javascript
-const	Intercom	= require('larvitamintercom'),
+const	winston	= require('winston'),
+	Intercom	= require('larvitamintercom'),
 	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
-	amsync	= require('larvitamsync');
+	amsync	= require('larvitamsync'),
+	log	= winston.createLogger({'transports': [new winston.transports.Console()]});
 
 let	syncServer;
 
-options.intercom	= new Intercom('AMQP connection string');
+options.intercom	= new Intercom({'conStr': 'AMQP connection string', 'log': log});
+options.log	= log;
 
 syncServer = new amsync.SyncServer(options, function(err) {
 	if (err) throw err;
@@ -123,11 +132,19 @@ new amsync.SyncClient(options, function(err, res) {
 For this to work, both larvitamintercom and larvitdb must be configured and up and running!
 
 ```javascript
-const	Intercom	= require('larvitamintercom'),
+const	winston	= require('winston'),
+	Intercom	= require('larvitamintercom'),
 	options	= {'exchange': 'test_dataDump'}, // RabbitMQ exchange, must be unique on the queue
-	amsync	= require('larvitamsync');
+	amsync	= require('larvitamsync'),
+	log	= winston.createLogger({'transports': [new winston.transports.Console()]}),
+	db	= require('larvitdb');
+
+// See how to configure larvitdb here: https://github.com/larvit/larvitdb#larvitdb
+db.setup(someConfig);
 
 options.intercom	= new Intercom('AMQP connection string');
+options.log	= log;
+options.db	= db;
 
 amsync.mariadb(options, function(err) {
 	if (err) throw err;

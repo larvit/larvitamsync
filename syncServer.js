@@ -3,10 +3,11 @@
 const	topLogPrefix	= 'larvitamsync: syncServer.js: ',
 	freePort	= require('find-free-port'),
 	uuidLib	= require('uuid'),
+	LUtils	= require('larvitutils'),
+	lUtils	= new LUtils(),
 	spawn	= require('child_process').spawn,
 	http	= require('http'),
-	nics	= require('os').networkInterfaces(),
-	log	= require('winston');
+	nics	= require('os').networkInterfaces();
 
 function SyncServer(options, cb) {
 	const	that	= this;
@@ -16,35 +17,43 @@ function SyncServer(options, cb) {
 	that.options	= options;
 	that.intercom	= that.options.intercom;
 
+	if ( ! options.log) {
+		options.log	= new lUtils.Log();
+	}
+
+	that.log	= options.log;
+
 	logPrefix += 'Exchange: "' + this.options.exchange + '" - ';
 
 	// We are strictly in need of the intercom!
 	if ( ! (that.intercom instanceof require('larvitamintercom'))) {
 		const	err	= new Error('options.intercom is not an instance of Intercom!');
-		log.error(logPrefix + err.message);
+		that.log.error(logPrefix + err.message);
 		throw err;
 	}
 
-	log.info(logPrefix + 'started');
+	that.log.info(logPrefix + 'started');
 
 	// Subscribe to dump requests
 	that.listenForRequests(cb);
 }
 
-function getFreePort(minPort, maxPort, cb) {
-	const	logPrefix	= topLogPrefix + '- getFreePort() - ';
+SyncServer.prototype.getFreePort = function getFreePort(minPort, maxPort, cb) {
+	const	logPrefix	= topLogPrefix + '- getFreePort() - ',
+		that	= this;
+
 	freePort(minPort, maxPort, function (err, port) {
 		if (err) {
-			log.warn(logPrefix + 'No free port available, trying again. Error: ' + err.message);
+			that.log.warn(logPrefix + 'No free port available, trying again. Error: ' + err.message);
 
 			setTimeout(function () {
-				getFreePort(minPort, maxPort, cb);
+				that.getFreePort(minPort, maxPort, cb);
 			}, 19);
 		} else {
 			cb(null, port);
 		}
 	});
-}
+};
 
 SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 	const	logPrefix	= topLogPrefix + 'SyncServer.prototype.handleHttpReq() - Exchange: "' + this.options.exchange + '" - Token: "' + req.token + '" - ',
@@ -53,7 +62,7 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 	let	dumpProcess;
 
 	if (req.headers.token !== req.token) {
-		log.info(logPrefix + 'Incoming message. Invalid token detected: "' + req.headers.token + '"');
+		that.log.info(logPrefix + 'Incoming message. Invalid token detected: "' + req.headers.token + '"');
 		res.writeHead(401, {'Content-Type': 'text/plain; charset=utf-8'});
 		res.end('Unauthorized');
 		return;
@@ -61,13 +70,13 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 
 	if ( ! that.options.dataDumpCmd || ! that.options.dataDumpCmd.command) {
 		const	err	= new Error('options.dataDumpCmd.command is a required option!');
-		log.error(logPrefix + 'Invalid options: ' + err.message);
+		that.log.error(logPrefix + 'Invalid options: ' + err.message);
 		res.writeHead(500, { 'Content-Type':	'text/plain' });
 		res.end('Internal server error');
 		return;
 	}
 
-	log.verbose(logPrefix + 'Incoming message with valid token.');
+	that.log.verbose(logPrefix + 'Incoming message with valid token.');
 
 	dumpProcess	= spawn(that.options.dataDumpCmd.command, that.options.dataDumpCmd.args, that.options.dataDumpCmd.options);
 
@@ -80,18 +89,18 @@ SyncServer.prototype.handleHttpReq = function handleHttpReq(req, res) {
 	});
 
 	dumpProcess.stderr.on('data', function (data) {
-		log.warn(logPrefix + 'Error from dump command: ' + data.toString());
+		that.log.warn(logPrefix + 'Error from dump command: ' + data.toString());
 	});
 
 	dumpProcess.on('close', function () {
-		log.debug(logPrefix + 'Dump command closed.');
+		that.log.debug(logPrefix + 'Dump command closed.');
 		res.end();
 		clearTimeout(req.serverTimeout);
 		req.server.close();
 	});
 
 	dumpProcess.on('error', function (err) {
-		log.warn(logPrefix + 'Non-0 exit code from dumpProcess. err: ' + err.message);
+		that.log.warn(logPrefix + 'Non-0 exit code from dumpProcess. err: ' + err.message);
 		res.writeHead(500, { 'Content-Type':	'text/plain' });
 		res.end('Process error: ' + err.message);
 	});
@@ -107,13 +116,13 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 
 	ack();
 
-	log.debug(logPrefix + 'Incoming message: ' + JSON.stringify(message));
+	that.log.debug(logPrefix + 'Incoming message: ' + JSON.stringify(message));
 
 	if (message.action !== 'requestDump') {
 		return;
 	}
 
-	log.debug(logPrefix + 'Dump requested, starting http server.');
+	that.log.debug(logPrefix + 'Dump requested, starting http server.');
 
 	server = http.createServer(function (req, res) {
 		req.server	= server;
@@ -144,39 +153,39 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 			}
 		}
 
-		log.info(logPrefix + 'http server started.');
-		log.verbose(logPrefix + 'http server started. Endpoints: "' + JSON.stringify(message.endpoints) + '"');
+		that.log.info(logPrefix + 'http server started.');
+		that.log.verbose(logPrefix + 'http server started. Endpoints: "' + JSON.stringify(message.endpoints) + '"');
 
 		that.intercom.send(message, {'exchange': that.options.exchange});
 	});
 
 	serverTimeout = setTimeout(function () {
-		log.verbose(logPrefix + 'http server stopped due to timeout since no request came in.');
+		that.log.verbose(logPrefix + 'http server stopped due to timeout since no request came in.');
 		server.close();
 	}, 60000);
 
-	if (that.options.host) log.verbose(logPrefix + 'Using configured hostname "' + that.options.host + '"');
+	if (that.options.host) that.log.verbose(logPrefix + 'Using configured hostname "' + that.options.host + '"');
 
 	if (that.options.minPort && that.options.maxPort) {
-		log.verbose(logPrefix + 'port range between "' + that.options.minPort + '" and "' + that.options.maxPort + '" specified, trying to find available port');
+		that.log.verbose(logPrefix + 'port range between "' + that.options.minPort + '" and "' + that.options.maxPort + '" specified, trying to find available port');
 
 		server.on('error', function (err) {
 			if (err.message && err.message.substring(0, 17) === 'listen EADDRINUSE') {
-				log.warn(logPrefix + 'Port: "' + err.message.substring(21) + '" in use, retrying');
+				that.log.warn(logPrefix + 'Port: "' + err.message.substring(21) + '" in use, retrying');
 				tryToGetFreePort();
 			} else {
-				log.error(logPrefix + err.message);
+				that.log.error(logPrefix + err.message);
 				throw err;
 			}
 		});
 
 		function tryToGetFreePort() {
-			getFreePort(that.options.minPort, that.options.maxPort, function (err, port) {
+			that.getFreePort(that.options.minPort, that.options.maxPort, function (err, port) {
 				if (err) {
-					log.error(logPrefix + 'No available port found');
+					that.log.error(logPrefix + 'No available port found');
 					return;
 				}
-				log.verbose(logPrefix + 'found port within range: "' + port + '"');
+				that.log.verbose(logPrefix + 'found port within range: "' + port + '"');
 				server.listen(port);
 			});
 		}
@@ -184,7 +193,7 @@ SyncServer.prototype.handleIncMsg = function handleIncMsg(message, ack) {
 	} else {
 		server.listen(0);
 		server.on('error', function (err) {
-			log.error(logPrefix + err.message);
+			that.log.error(logPrefix + err.message);
 			throw err;
 		});
 	}

@@ -2,8 +2,9 @@
 
 const	topLogPrefix	= 'larvitamsync: syncClient.js: ',
 	Intercom	= require('larvitamintercom'),
-	http	= require('http'),
-	log	= require('winston');
+	LUtils	= require('larvitutils'),
+	lUtils	= new LUtils(),
+	http	= require('http');
 
 function SyncClient(options, cb) {
 	const	logPrefix	= topLogPrefix + 'SyncClient() - ',
@@ -13,25 +14,31 @@ function SyncClient(options, cb) {
 	that.responseReceived	= false;
 	that.extIntercom	= that.options.intercom;
 
+	if ( ! options.log) {
+		options.log	= new lUtils.Log();
+	}
+
+	that.log	= options.log;
+
 	// We are strictly in need of the intercom!
 	if ( ! (that.extIntercom instanceof Intercom)) {
 		const	err	= new Error('options.intercom is not an instance of Intercom!');
-		log.error(logPrefix + err.message);
+		that.log.error(logPrefix + err.message);
 		throw err;
 	}
 
 	// Reconnect so we have a fresh instance of intercom so we do not interfer with others
-	log.verbose(logPrefix + 'Starting temporary intercom');
+	that.log.verbose(logPrefix + 'Starting temporary intercom');
 
 	if (that.extIntercom.conStr === 'loopback interface') {
-		log.warn(logPrefix + 'Running intercom on "loopback interface", this is probably not what you want');
+		that.log.warn(logPrefix + 'Running intercom on "loopback interface", this is probably not what you want');
 	}
 
 	that.intercom = new Intercom(that.extIntercom.conStr);
 	that.intercom.on('ready', function (err) {
 		if (err) return cb(err);
 
-		log.info(logPrefix + 'started on exchange: "' + that.options.exchange + '"');
+		that.log.info(logPrefix + 'started on exchange: "' + that.options.exchange + '"');
 
 		that.options	= options;
 
@@ -55,17 +62,17 @@ SyncClient.prototype.handleMsg = function (message, ack, cb) {
 
 	let	req;
 
-	log.debug(logPrefix + 'Incoming message: "' + JSON.stringify(message) + '"');
+	that.log.debug(logPrefix + 'Incoming message: "' + JSON.stringify(message) + '"');
 
 	ack();
 
 	if (message.action !== 'dumpResponse') {
-		log.debug(logPrefix + 'Ignoring message because action is not "dumpResponse", but: "' + message.action + '"');
+		that.log.debug(logPrefix + 'Ignoring message because action is not "dumpResponse", but: "' + message.action + '"');
 		return;
 	}
 
 	if (that.responseReceived !== false) {
-		log.debug(logPrefix + 'Ignoring message because response is already received');
+		that.log.debug(logPrefix + 'Ignoring message because response is already received');
 		return;
 	}
 
@@ -73,7 +80,7 @@ SyncClient.prototype.handleMsg = function (message, ack, cb) {
 
 	if ( ! message.endpoints) {
 		const	err	= new Error('message.endpoints does not contain network endpoints to connecto to');
-		log.error(logPrefix + err.message);
+		that.log.error(logPrefix + err.message);
 		return cb(err);
 	}
 
@@ -86,7 +93,7 @@ SyncClient.prototype.handleMsg = function (message, ack, cb) {
 	reqOptions.port	= message.endpoints[0].port;
 	reqOptions.headers	= {'token': message.endpoints[0].token};
 
-	log.verbose(logPrefix + 'Sending a sync request. reqOptions: ' + JSON.stringify(reqOptions));
+	that.log.verbose(logPrefix + 'Sending a sync request. reqOptions: ' + JSON.stringify(reqOptions));
 
 	if (that.options.requestOptions !== undefined) {
 		for (const key of Object.keys(that.options.requestOptions)) {
@@ -94,28 +101,28 @@ SyncClient.prototype.handleMsg = function (message, ack, cb) {
 		}
 	}
 
-	log.verbose(logPrefix + 'Sending request: "' + JSON.stringify(reqOptions) + '"');
+	that.log.verbose(logPrefix + 'Sending request: "' + JSON.stringify(reqOptions) + '"');
 
 	req = http.request(reqOptions, function (res) {
 		if (res.statusCode !== 200) {
 			const	err	= new Error('Non 200 statusCode: ' + res.statusCode);
-			log.error(logPrefix + 'Request failed: ' + err.message);
+			that.log.error(logPrefix + 'Request failed: ' + err.message);
 			return cb(err);
 		}
 
 		res.on('error', function (err) {
-			log.error(logPrefix + 'res.on(error): ' + err.message);
+			that.log.error(logPrefix + 'res.on(error): ' + err.message);
 		});
 
 		cb(null, res);
 	});
 	req.end();
 	req.on('error', function (err) {
-		log.error(logPrefix + 'Request failed: ' + err.message);
+		that.log.error(logPrefix + 'Request failed: ' + err.message);
 		cb(err);
 	});
 
-	log.verbose(logPrefix + 'Closing temporary intercom');
+	that.log.verbose(logPrefix + 'Closing temporary intercom');
 	that.intercom.close();
 };
 
