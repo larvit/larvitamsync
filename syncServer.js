@@ -26,8 +26,8 @@ function SyncServer(options, cb) {
 	logPrefix += 'Exchange: "' + this.options.exchange + '" - ';
 
 	// We are strictly in need of the intercom!
-	if ( ! (that.intercom instanceof require('larvitamintercom'))) {
-		const	err	= new Error('options.intercom is not an instance of Intercom!');
+	if ( ! that.intercom) {
+		const	err	= new Error('options.intercom is required!');
 		that.log.error(logPrefix + err.message);
 		throw err;
 	}

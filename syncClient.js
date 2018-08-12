@@ -21,8 +21,8 @@ function SyncClient(options, cb) {
 	that.log	= options.log;
 
 	// We are strictly in need of the intercom!
-	if ( ! (that.extIntercom instanceof Intercom)) {
-		const	err	= new Error('options.intercom is not an instance of Intercom!');
+	if ( ! that.extIntercom) {
+		const	err	= new Error('options.intercom is required!');
 		that.log.error(logPrefix + err.message);
 		throw err;
 	}
