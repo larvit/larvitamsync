@@ -22,7 +22,7 @@
   "devDependencies": {
     "lodash": "4.17.10",
     "mocha": "5.2.0",
-    "mocha-eslint": "4.1.0",
+    "mocha-eslint": "5.0.0",
     "request": "2.88.0"
   },
   "dependencies": {
