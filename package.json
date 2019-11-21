@@ -30,7 +30,7 @@
     "find-free-port": "^2.0.0",
     "larvitamintercom": "^0.3.0",
     "larvitdb": "^2.0.0",
-    "larvitutils": "^2.0.0",
+    "larvitutils": "^4.0.0",
     "uuid": "^3.0.1"
   }
 }
