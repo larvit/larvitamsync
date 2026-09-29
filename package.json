@@ -31,6 +31,6 @@
     "larvitamintercom": "^1.0.0",
     "larvitdb": "^2.0.0",
     "larvitutils": "^5.0.0",
-    "uuid": "^11.0.0"
+    "uuid": "^14.0.0"
   }
 }
